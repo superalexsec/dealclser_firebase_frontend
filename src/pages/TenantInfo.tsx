@@ -21,6 +21,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  CircularProgress,
 } from '@mui/material';
 import {
   Business as BusinessIcon,
@@ -69,6 +70,16 @@ interface TenantData {
   plan: 'basic' | 'pro' | 'enterprise';
   users: number;
   createdAt: string;
+  companyName: string;
+  businessType: string;
+  registrationNumber: string;
+  subscriptionPlan: string;
+  subscriptionStatus: string;
+  billingCycle: string;
+  nextBillingDate: string;
+  activeUsers: number;
+  totalStorage: string;
+  usedStorage: string;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
@@ -88,6 +99,15 @@ const pieData: PieChartData[] = [
   { name: 'Pending', value: 200 },
 ];
 
+const usageData = [
+  { month: 'Jan', users: 45, storage: 75 },
+  { month: 'Feb', users: 52, storage: 82 },
+  { month: 'Mar', users: 58, storage: 88 },
+  { month: 'Apr', users: 63, storage: 92 },
+  { month: 'May', users: 70, storage: 95 },
+  { month: 'Jun', users: 75, storage: 98 },
+];
+
 const TenantInfo = () => {
   const [tenants, setTenants] = useState<TenantData[]>([
     {
@@ -100,6 +120,16 @@ const TenantInfo = () => {
       plan: 'pro',
       users: 25,
       createdAt: '2024-01-01',
+      companyName: 'Acme Corporation',
+      businessType: 'Technology Solutions',
+      registrationNumber: '12345678901',
+      subscriptionPlan: 'Enterprise',
+      subscriptionStatus: 'Active',
+      billingCycle: 'Monthly',
+      nextBillingDate: '2024-05-01',
+      activeUsers: 75,
+      totalStorage: '1TB',
+      usedStorage: '750GB',
     },
     {
       id: '2',
@@ -111,6 +141,16 @@ const TenantInfo = () => {
       plan: 'enterprise',
       users: 50,
       createdAt: '2024-02-15',
+      companyName: 'Tech Solutions',
+      businessType: 'Technology Solutions',
+      registrationNumber: '12345678902',
+      subscriptionPlan: 'Pro',
+      subscriptionStatus: 'Active',
+      billingCycle: 'Monthly',
+      nextBillingDate: '2024-05-15',
+      activeUsers: 50,
+      totalStorage: '1TB',
+      usedStorage: '500GB',
     },
   ]);
 
@@ -120,6 +160,16 @@ const TenantInfo = () => {
     status: 'pending',
     plan: 'basic',
     users: 0,
+    companyName: '',
+    businessType: '',
+    registrationNumber: '',
+    subscriptionPlan: 'Basic',
+    subscriptionStatus: 'Inactive',
+    billingCycle: 'Monthly',
+    nextBillingDate: '',
+    activeUsers: 0,
+    totalStorage: '',
+    usedStorage: '',
   });
 
   const handleSave = () => {
@@ -150,6 +200,19 @@ const TenantInfo = () => {
     }
   };
 
+  const handleEdit = () => {
+    setEditingTenant(editingTenant ? null : tenants[0]);
+    setNewTenant(editingTenant || tenants[0]);
+    setOpenDialog(true);
+  };
+
+  const handleChange = (field: keyof TenantData) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setNewTenant({
+      ...newTenant,
+      [field]: event.target.value,
+    });
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -158,17 +221,9 @@ const TenantInfo = () => {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={() => {
-            setEditingTenant(null);
-            setNewTenant({
-              status: 'pending',
-              plan: 'basic',
-              users: 0,
-            });
-            setOpenDialog(true);
-          }}
+          onClick={handleEdit}
         >
-          Add Tenant
+          {editingTenant ? 'Cancel' : 'Add Tenant'}
         </Button>
       </Box>
 
@@ -325,6 +380,52 @@ const TenantInfo = () => {
                 </Box>
               </Paper>
             </Grid>
+
+            {/* Usage Statistics */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Usage Statistics
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={4}>
+                      <Box sx={{ textAlign: 'center', position: 'relative' }}>
+                        <CircularProgress
+                          variant="determinate"
+                          value={75}
+                          size={120}
+                          thickness={4}
+                        />
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                        >
+                          <Typography variant="h6">{editingTenant?.activeUsers || 0}</Typography>
+                          <Typography variant="body2">Active Users</Typography>
+                        </Box>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={8}>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={usageData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="users" fill="#2196F3" name="Users" />
+                          <Bar dataKey="storage" fill="#4CAF50" name="Storage (%)" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
         </Grid>
       </Grid>
@@ -341,7 +442,7 @@ const TenantInfo = () => {
                 fullWidth
                 label="Name"
                 value={newTenant.name || ''}
-                onChange={(e) => setNewTenant({ ...newTenant, name: e.target.value })}
+                onChange={handleChange('name')}
               />
             </Grid>
             <Grid item xs={12}>
@@ -349,7 +450,7 @@ const TenantInfo = () => {
                 fullWidth
                 label="Email"
                 value={newTenant.email || ''}
-                onChange={(e) => setNewTenant({ ...newTenant, email: e.target.value })}
+                onChange={handleChange('email')}
               />
             </Grid>
             <Grid item xs={12}>
@@ -357,7 +458,7 @@ const TenantInfo = () => {
                 fullWidth
                 label="Phone"
                 value={newTenant.phone || ''}
-                onChange={(e) => setNewTenant({ ...newTenant, phone: e.target.value })}
+                onChange={handleChange('phone')}
               />
             </Grid>
             <Grid item xs={12}>
@@ -365,7 +466,7 @@ const TenantInfo = () => {
                 fullWidth
                 label="Address"
                 value={newTenant.address || ''}
-                onChange={(e) => setNewTenant({ ...newTenant, address: e.target.value })}
+                onChange={handleChange('address')}
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -403,6 +504,78 @@ const TenantInfo = () => {
                 type="number"
                 value={newTenant.users || 0}
                 onChange={(e) => setNewTenant({ ...newTenant, users: parseInt(e.target.value) })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Company Name"
+                value={newTenant.companyName || ''}
+                onChange={handleChange('companyName')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Business Type"
+                value={newTenant.businessType || ''}
+                onChange={handleChange('businessType')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Registration Number"
+                value={newTenant.registrationNumber || ''}
+                onChange={handleChange('registrationNumber')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Subscription Plan"
+                value={newTenant.subscriptionPlan || ''}
+                onChange={handleChange('subscriptionPlan')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Subscription Status"
+                value={newTenant.subscriptionStatus || ''}
+                onChange={handleChange('subscriptionStatus')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Billing Cycle"
+                value={newTenant.billingCycle || ''}
+                onChange={handleChange('billingCycle')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Next Billing Date"
+                value={newTenant.nextBillingDate || ''}
+                onChange={handleChange('nextBillingDate')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Total Storage"
+                value={newTenant.totalStorage || ''}
+                onChange={handleChange('totalStorage')}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Used Storage"
+                value={newTenant.usedStorage || ''}
+                onChange={handleChange('usedStorage')}
               />
             </Grid>
           </Grid>
