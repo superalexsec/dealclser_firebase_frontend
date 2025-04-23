@@ -1,21 +1,34 @@
-FROM node:18
+# Build stage
+FROM node:18-alpine as build
 
 WORKDIR /app
 
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ git
+
+# Copy package files
 COPY package*.json ./
 
-# Install all dependencies including recharts
-RUN npm install && \
-    npm install --save \
-    react-beautiful-dnd \
-    @types/react-beautiful-dnd \
-    recharts \
-    @types/recharts
+# Install dependencies
+RUN npm install
 
+# Copy source code
 COPY . .
 
-ENV NODE_OPTIONS=--openssl-legacy-provider
+# Build the app
+RUN npm run build
 
-EXPOSE 3000
+# Production stage
+FROM nginx:alpine
 
-CMD ["npm", "start"] 
+# Copy built assets from build stage
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 80
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"] 

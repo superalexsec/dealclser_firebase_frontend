@@ -14,6 +14,7 @@ import {
   Typography,
   Collapse,
   ListItemButton,
+  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -28,6 +29,7 @@ import {
   Business as BusinessIcon,
   ExpandLess,
   ExpandMore,
+  Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -97,8 +99,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setMessagingOpen(!messagingOpen);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    navigate('/');
+  };
+
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { 
       text: 'Messaging', 
       icon: <MessageIcon />,
@@ -115,6 +122,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
+  // Don't render the layout on the landing page
+  if (location.pathname === '/') {
+    return <>{children}</>;
+  }
+
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
@@ -129,9 +141,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             DealCloser
           </Typography>
+          <Button
+            color="inherit"
+            onClick={handleLogout}
+            startIcon={<LogoutIcon />}
+          >
+            Logout
+          </Button>
         </Toolbar>
       </AppBarStyled>
       <Drawer
