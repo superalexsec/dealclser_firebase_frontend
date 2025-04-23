@@ -1,0 +1,50 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+I am using Cursor AI to build a complex Multi Tenant, Cloud Native Stateless app using containers on GCP Cloud Run. I also use GCP SQL Postgres15, and all interactions and all flows needs to be managed using this DB. We also use GCP Build integrated with my gcloud cli tool, GCP Run, GCP Secret Manager. I use GCP Secrets Manager, GCP SQL Postgres15. I want to use Sequential Thinking and give time needed to the model to check its thoughts. Always use cloudbuild.yml (or equivalent) to handle GCP Secrets inside the container.
+Message and Module Flows:
+This multi tenant app, each tenant has multiple clients for this whatsapp bot interaction. We need module flow and message flow, for each tenant. Module Flow is the modules like module_1 and module_2. Inside each module, like module_1 we have message_1, message_2 and message_3, as sample. And tenants can choose that they want module_1 messages for whatsapp first replied to their clients, and after those (spaced by client interactions), module_2 messages delivered. But tenant 2 can choose to have module_2 messages first, then message_1 messages sent. Each message waits for interaction and needs to be handled on DB as this is a stateless containerize app inside GCP Run. For a sample lets try module_1 being messages for welcome and module_2 being for clien check trough its CPF / CNPJ, all in brazilian portuguese.
+Apps Involved:
+
+1.zap-app. Purpose: Coordinates the complete workflow across all services. It receives the initial trigger from whatsapp biz and manages the step-by-step execution of the user flow. The sequence is: receive WhatsApp messages, get information inside DB to related flows for modules and messages for each tenant vs tenant client based on phone number and respond based on next message on flow message or flow module. Manages WhatsApp communication with users. It receives incoming messages via webhook from Whatsapp biz, maintains conversation state, sends replies etc.
+
+2.calendar-app. Purpose: Handles scheduling and integration with Google Calendar. It checks available time slots, schedules events after payment confirmation, and manages blocked times. It creates events for calendars for each tenant, adding the tenants client information and contact. At some module flows, the scheduling can be done after other modules and all this needs to be managed using the DB.
+
+3.client-service. Purpose: Manages client data and orders. It creates or retrieves client records using CPF or CNPJ with common information like phone number, email, country, zip code etc.
+
+4.pdf-service. Purpose: Generates PDF contracts. It uses static templates for each tenant and injects dynamic content to produce service agreements also adding the clients data for this tenant contract. It also manages template storage and rendering.
+
+5.signing-service. Purpose: Manages the document signing process using Dropbox Sign. It uploads generated PDFs, tracks signature status, and sends notifications for signature requests, all managed used DB.
+
+8.mercadopago-service. Purpose: Processes payments via MercadoPago. It creates payment links, monitors status, and confirms completed transactions.
+
+FIRST TENANT FLOW:
+Tenant Phone Number (1) Receives the contact from client phone number using Whatsapp Biz, the bot asks for date and time, (2) check on Google Calendar for availability, (3) if no availability is there, asks for other date and time, if there is availability it checks for the CPF/CNPJ (Brazilian id), (4) creates or interact with existent user on my DB, (5) shows products available on my DB for this tenant, (6) confirm all order data, (7) generates a Contract PDF using static data on my container app, (8) uploads to DropBox Sign and waits for signature confirmation before proceed, (9) if signed generates payment order on MercadoPago and send to the client, (10) wait for payment confirmation, if paid it schedules the event on my tenant GCP Agenda.
+
+USAGE:
+After code changes, always build:
+gcloud builds submit --config cloudbuild.yaml
+
+Always check the logs after complete building to possible troubleshooting:
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=zap-app" --limit=50 | cat
+
+You can use the following sample to query the DB and make the code comply (or the DB): DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.44.255.179 port=5432 dbname=whatsapp_db user=dealcloser" -c "\dt" | cat
+
+You can check module flow using this sample:
+DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.44.255.179 port=5432 dbname=whatsapp_db user=dealcloser" -c "SELECT tmo.tenant_id, m.name as module_name, tmo.order_position, tmo.is_active FROM tenant_module_order tmo JOIN modules m ON tmo.module_id = m.id ORDER BY tmo.order_position;" | cat
+
+You can check message flows using this sample:
+DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.44.255.179 port=5432 dbname=whatsapp_db user=dealcloser" -c "SELECT fs.step_number, fs.message_content FROM flow_steps fs WHERE fs.flow_id = '4ea1cc13-9330-43e7-ac87-2264b81f53fe' ORDER BY fs.step_number;" | cat
+
+
+GCP SQL Postgres15
+Connection name:			dealcloser-456014:us-central1:dealcloser-db
+Public IP address:			34.44.255.179
+Default TCP database port number:	5432 
+
+GCP Secret Manager names:
+dealcloser_DB_INSTANCE   	 
+dealcloser_DB_PASS   	 
+dealcloser_DB_USER
