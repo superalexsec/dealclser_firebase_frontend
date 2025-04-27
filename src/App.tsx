@@ -14,86 +14,88 @@ import Calendar from './pages/Calendar';
 import PDFService from './pages/PDFService';
 import Profile from './pages/Profile';
 import TenantInfo from './pages/TenantInfo';
+import Register from './pages/Register';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 const queryClient = new QueryClient();
 
-// Temporary auth check - replace with proper auth logic later
-const isAuthenticated = () => {
-  return localStorage.getItem('isAuthenticated') === 'true';
-};
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  if (!isAuthenticated()) {
+  if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
   return <Layout>{children}</Layout>;
 };
 
-function App() {
+const App: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Landing />} />
-            
-            {/* Protected routes */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/module-flow" element={
-              <ProtectedRoute>
-                <ModuleFlow />
-              </ProtectedRoute>
-            } />
-            <Route path="/message-flow" element={
-              <ProtectedRoute>
-                <MessageFlow />
-              </ProtectedRoute>
-            } />
-            <Route path="/client-service" element={
-              <ProtectedRoute>
-                <ClientService />
-              </ProtectedRoute>
-            } />
-            <Route path="/calendar" element={
-              <ProtectedRoute>
-                <Calendar />
-              </ProtectedRoute>
-            } />
-            <Route path="/pdf-service" element={
-              <ProtectedRoute>
-                <PDFService />
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } />
-            <Route path="/tenant-info" element={
-              <ProtectedRoute>
-                <TenantInfo />
-              </ProtectedRoute>
-            } />
-          </Routes>
-        </BrowserRouter>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<Landing />} />
+              <Route path="/register" element={<Register />} />
+              
+              {/* Protected routes */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/module-flow" element={
+                <ProtectedRoute>
+                  <ModuleFlow />
+                </ProtectedRoute>
+              } />
+              <Route path="/message-flow" element={
+                <ProtectedRoute>
+                  <MessageFlow />
+                </ProtectedRoute>
+              } />
+              <Route path="/client-service" element={
+                <ProtectedRoute>
+                  <ClientService />
+                </ProtectedRoute>
+              } />
+              <Route path="/calendar" element={
+                <ProtectedRoute>
+                  <Calendar />
+                </ProtectedRoute>
+              } />
+              <Route path="/pdf-service" element={
+                <ProtectedRoute>
+                  <PDFService />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } />
+              <Route path="/tenant-info" element={
+                <ProtectedRoute>
+                  <TenantInfo />
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </BrowserRouter>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </AuthProvider>
   );
-}
+};
 
 export default App; 

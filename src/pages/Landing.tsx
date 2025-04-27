@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -18,6 +18,7 @@ import {
   useMediaQuery,
   Divider,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -29,6 +30,8 @@ import {
   Apple as AppleIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 const HeroSection = styled(Box)(({ theme }) => ({
   background: 'linear-gradient(45deg, #00A884 30%, #128C7E 90%)',
@@ -73,24 +76,75 @@ interface AuthDialogProps {
   onModeChange: (isLogin: boolean) => void;
 }
 
+interface AuthResponse {
+  token: string;
+  tenantId: string;
+}
+
+interface ErrorResponse {
+  response?: {
+    data?: {
+      message: string;
+    };
+  };
+}
+
 const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeChange }) => {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Set auth state and redirect to dashboard
-    localStorage.setItem('isAuthenticated', 'true');
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        // Login logic
+        const response = await axios.post<AuthResponse>('/api/auth/login', { email, password });
+        login(response.data.token, response.data.tenantId);
+        navigate('/dashboard');
+      } else {
+        // Registration logic
+        const response = await axios.post<AuthResponse>('/api/auth/register', {
+          email,
+          password,
+          name,
+          phone,
+          address,
+        });
+        login(response.data.token, response.data.tenantId);
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      const error = err as ErrorResponse;
+      setError(error.response?.data?.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSocialLogin = (provider: string) => {
-    // Set auth state and redirect to dashboard
-    localStorage.setItem('isAuthenticated', 'true');
-    navigate('/dashboard');
+  const handleSocialLogin = async (provider: string) => {
+    setLoading(true);
+    try {
+      const response = await axios.post<AuthResponse>(`/api/auth/${provider}`, { provider });
+      login(response.data.token, response.data.tenantId);
+      navigate('/dashboard');
+    } catch (err) {
+      const error = err as ErrorResponse;
+      setError(error.response?.data?.message || 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -113,10 +167,17 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
       </DialogTitle>
       <DialogContent>
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
           <SocialButton
             variant="outlined"
             startIcon={<GoogleIcon />}
             onClick={() => handleSocialLogin('google')}
+            disabled={loading}
           >
             Continue with Google
           </SocialButton>
@@ -124,6 +185,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             variant="outlined"
             startIcon={<AppleIcon />}
             onClick={() => handleSocialLogin('apple')}
+            disabled={loading}
           >
             Continue with iCloud
           </SocialButton>
@@ -134,8 +196,46 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             </Typography>
           </Divider>
 
+          {!isLogin && (
+            <>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Full Name"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                margin="dense"
+                label="Phone"
+                type="tel"
+                fullWidth
+                variant="outlined"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                margin="dense"
+                label="Address"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                required
+                sx={{ mb: 2 }}
+              />
+            </>
+          )}
+
           <TextField
-            autoFocus
             margin="dense"
             label="Email"
             type="email"
@@ -143,6 +243,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             variant="outlined"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
             sx={{ mb: 2 }}
           />
           <TextField
@@ -153,6 +254,8 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             variant="outlined"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
+            sx={{ mb: 2 }}
           />
           
           {!isLogin && (
@@ -167,8 +270,13 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             color="primary"
             fullWidth
             sx={{ mt: 3, mb: 2 }}
+            disabled={loading}
           >
-            {isLogin ? 'Login' : 'Create Account'}
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              isLogin ? 'Login' : 'Create Account'
+            )}
           </Button>
         </Box>
       </DialogContent>
@@ -182,6 +290,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
               onModeChange(!isLogin);
             }}
             sx={{ ml: 1 }}
+            disabled={loading}
           >
             {isLogin ? 'Sign Up' : 'Login'}
           </Button>
@@ -192,12 +301,17 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
 };
 
 const Landing: React.FC = () => {
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const navigate = useNavigate();
 
   const handleAuthClick = (login: boolean) => {
-    setIsLogin(login);
-    setAuthDialogOpen(true);
+    setIsLoginMode(login);
+    setAuthOpen(true);
+  };
+
+  const handleAuthClose = () => {
+    setAuthOpen(false);
   };
 
   const features = [
@@ -226,39 +340,31 @@ const Landing: React.FC = () => {
   return (
     <Box>
       <HeroSection>
-        <Container>
+        <Container maxWidth="md">
           <img
             src="/zap_central.png"
             alt="ZapCentral Logo"
             style={{ width: '200px', marginBottom: '2rem' }}
           />
           <Typography variant="h2" component="h1" gutterBottom>
-            ZapCentral
+            Automate Your Business with Smart WhatsApp Flows
           </Typography>
-          <Typography variant="h5" gutterBottom sx={{ mb: 4 }}>
-            The complete platform to manage your WhatsApp Business
+          <Typography variant="h5" component="p" color="rgba(255, 255, 255, 0.8)" gutterBottom>
+            Streamline client interactions, scheduling, contracts, and payments - all through WhatsApp.
           </Typography>
-          <Box>
-            <AuthButton
-              variant="contained"
-              color="secondary"
-              onClick={() => handleAuthClick(false)}
+          <Link to="/register" style={{ textDecoration: 'none' }}> 
+            <AuthButton 
+              variant="contained" 
+              color="secondary" 
+              size="large" 
             >
               Get Started Now
             </AuthButton>
-            <AuthButton
-              variant="outlined"
-              color="inherit"
-              onClick={() => handleAuthClick(true)}
-              sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 2, sm: 0 } }}
-            >
-              I already have an account
-            </AuthButton>
-          </Box>
+          </Link>
         </Container>
       </HeroSection>
 
-      <Container sx={{ py: 8 }}>
+      <Container sx={{ py: 8 }} maxWidth="lg">
         <Typography variant="h3" component="h2" textAlign="center" gutterBottom>
           Features
         </Typography>
@@ -282,10 +388,10 @@ const Landing: React.FC = () => {
       </Container>
 
       <AuthDialog
-        open={authDialogOpen}
-        onClose={() => setAuthDialogOpen(false)}
-        isLogin={isLogin}
-        onModeChange={handleAuthClick}
+        open={authOpen}
+        onClose={handleAuthClose}
+        isLogin={isLoginMode}
+        onModeChange={setIsLoginMode}
       />
     </Box>
   );

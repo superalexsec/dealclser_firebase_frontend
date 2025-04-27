@@ -12,7 +12,10 @@ services:
       - ./public:/app/public
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:8080
+      # Use the same env var name as the application expects
+      # For local dev, set the backend URL here or via a .env file.
+      # In Cloud Run, this will be injected from Secret Manager.
+      - REACT_APP_BACKEND_URL=http://localhost:8080 # Replace with your local backend URL if different
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
