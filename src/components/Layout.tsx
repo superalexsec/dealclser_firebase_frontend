@@ -32,6 +32,9 @@ import {
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 
 const drawerWidth = 240;
 
@@ -81,6 +84,25 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   justifyContent: 'flex-end',
 }));
 
+const logoutTenant = async (token: string | null, backendUrl: string | undefined): Promise<void> => {
+  if (!token) {
+    console.warn('Logout attempted without a token.');
+    return;
+  }
+  if (!backendUrl) {
+    throw new Error('Backend URL is not configured.');
+  }
+  try {
+     await axios.post(`${backendUrl}/logout`, {}, {
+       headers: {
+         Authorization: `Bearer ${token}`,
+       },
+     });
+  } catch (error) { 
+     console.error('Backend logout failed:', error); 
+  }
+};
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -90,6 +112,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [messagingOpen, setMessagingOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout: localLogout, token } = useAuth();
+  const queryClient = useQueryClient();
+  const backendUrl = window.runtimeConfig?.backendUrl;
 
   const handleDrawerToggle = () => {
     setOpen(!open);
@@ -99,9 +124,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setMessagingOpen(!messagingOpen);
   };
 
+  const logoutMutation = useMutation<void, Error>({ 
+    mutationFn: () => logoutTenant(token, backendUrl),
+    onSuccess: () => {
+      localLogout();
+      queryClient.clear();
+      navigate('/');
+    },
+    onError: (error) => {
+      console.error('Logout mutation error, attempting local logout anyway:', error);
+      localLogout(); 
+      queryClient.clear();
+      navigate('/');
+    }
+  });
+
   const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    navigate('/');
+    logoutMutation.mutate();
   };
 
   const menuItems = [
@@ -122,7 +161,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
-  // Don't render the layout on the landing page
   if (location.pathname === '/') {
     return <>{children}</>;
   }
@@ -148,8 +186,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             color="inherit"
             onClick={handleLogout}
             startIcon={<LogoutIcon />}
+            disabled={logoutMutation.isPending}
           >
-            Logout
+            {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
           </Button>
         </Toolbar>
       </AppBarStyled>
