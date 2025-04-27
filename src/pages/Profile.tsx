@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Paper,
@@ -12,6 +12,12 @@ import {
   Chip,
   CircularProgress,
   Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -19,10 +25,12 @@ import {
   Phone as PhoneIcon,
   Business as BusinessIcon,
   LocationOn as LocationIcon,
+  DeleteForever as DeleteIcon,
 } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface TenantData {
   name: string;
@@ -52,17 +60,58 @@ const fetchTenantData = async (token: string | null, backendUrl: string | undefi
   return response.data;
 };
 
-const Profile = () => {
-  const { token } = useAuth();
-  const backendUrl = window.runtimeConfig?.backendUrl;
+const deleteTenant = async (token: string | null, backendUrl: string | undefined): Promise<void> => {
+  if (!token) {
+    throw new Error('Authentication token not found.');
+  }
+  if (!backendUrl) {
+    throw new Error('Backend URL is not configured.');
+  }
 
-  const { data: profile, isLoading, isError, error } = useQuery<TenantData, Error>({
+  await axios.delete(`${backendUrl}/tenants/me`, {
+    headers: { 
+      Authorization: `Bearer ${token}` 
+    },
+  });
+};
+
+const Profile = () => {
+  const { token, logout } = useAuth();
+  const backendUrl = window.runtimeConfig?.backendUrl;
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+
+  const { data: profile, isLoading, isError, error: queryError } = useQuery<TenantData, Error>({
     queryKey: ['tenantData', token],
     queryFn: () => fetchTenantData(token, backendUrl),
     enabled: !!token && !!backendUrl,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+
+  const deleteMutation = useMutation<void, Error>({
+    mutationFn: () => deleteTenant(token, backendUrl),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenantData'] });
+      logout();
+      navigate('/');
+    },
+  });
+
+  const handleDeleteClick = () => {
+    setOpenDeleteDialog(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setOpenDeleteDialog(false);
+  };
+
+  const handleConfirmDelete = () => {
+    deleteMutation.mutate();
+    handleCloseDeleteDialog();
+  };
 
   if (isLoading) {
     return (
@@ -72,12 +121,13 @@ const Profile = () => {
     );
   }
 
-  if (isError) {
-    return (
-      <Alert severity="error">
-        Error loading profile data: {error?.message || 'Unknown error'}
-      </Alert>
-    );
+  const displayError = queryError || deleteMutation.error;
+  if (displayError) {
+     return (
+       <Alert severity="error">
+         Error: {displayError?.message || 'An unknown error occurred.'}
+       </Alert>
+     );
   }
 
   if (!profile) {
@@ -91,7 +141,6 @@ const Profile = () => {
       </Typography>
 
       <Grid container spacing={3}>
-        {/* Profile Information */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
@@ -147,9 +196,47 @@ const Profile = () => {
                 />
               </ListItem>
             </List>
+
+            <Box sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={handleDeleteClick}
+                  disabled={deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending ? 'Deleting...' : 'Delete Account'}
+                </Button>
+            </Box>
           </Paper>
         </Grid>
       </Grid>
+
+      <Dialog
+        open={openDeleteDialog}
+        onClose={handleCloseDeleteDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {"Confirm Account Deletion"}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Are you absolutely sure you want to delete your account?
+            All associated data will be permanently lost.
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color="primary" autoFocus>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} color="error">
+            Confirm Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
