@@ -93,7 +93,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { loginWithCredentials, login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -109,12 +109,11 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
 
     try {
       if (isLogin) {
-        // Login logic
-        const response = await axios.post<AuthResponse>('/api/auth/login', { email, password });
-        login(response.data.token, response.data.tenantId);
+        await loginWithCredentials({ email, password });
+        onClose();
         navigate('/dashboard');
       } else {
-        // Registration logic
+        console.warn('Registration attempt via AuthDialog');
         const response = await axios.post<AuthResponse>('/api/auth/register', {
           email,
           password,
@@ -122,12 +121,17 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
           phone,
           address,
         });
-        login(response.data.token, response.data.tenantId);
-        navigate('/dashboard');
+        if (response.data.token) {
+          login(response.data.token);
+          onClose();
+          navigate('/dashboard');
+        } else {
+          throw new Error('Registration via dialog failed');
+        }
       }
-    } catch (err) {
-      const error = err as ErrorResponse;
-      setError(error.response?.data?.message || 'An error occurred');
+    } catch (err: any) {
+      console.error("AuthDialog Error:", err);
+      setError(err.message || 'Authentication failed. Please check details and try again.');
     } finally {
       setLoading(false);
     }
@@ -137,11 +141,12 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
     setLoading(true);
     try {
       const response = await axios.post<AuthResponse>(`/api/auth/${provider}`, { provider });
-      login(response.data.token, response.data.tenantId);
+      login(response.data.token);
+      onClose();
       navigate('/dashboard');
-    } catch (err) {
-      const error = err as ErrorResponse;
-      setError(error.response?.data?.message || 'An error occurred');
+    } catch (err: any) {
+      console.error("Social Login Error:", err);
+      setError(err.response?.data?.message || 'Social login failed.');
     } finally {
       setLoading(false);
     }
@@ -361,6 +366,16 @@ const Landing: React.FC = () => {
               Get Started Now
             </AuthButton>
           </Link>
+          {/* Add a Login button to trigger the AuthDialog */}
+          <AuthButton 
+            variant="outlined" 
+            color="inherit" // Use inherit color for outlined button on this background
+            size="large" 
+            onClick={() => handleAuthClick(true)} // Open dialog in login mode
+            sx={{ ml: 2 }} // Add some margin
+          >
+            Login
+          </AuthButton>
         </Container>
       </HeroSection>
 
