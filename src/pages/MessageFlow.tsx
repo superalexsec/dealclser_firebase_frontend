@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Paper,
@@ -32,6 +32,8 @@ import {
   DragIndicator as DragIcon,
   ArrowUpward as ArrowUpIcon,
   ArrowDownward as ArrowDownIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -63,6 +65,8 @@ const MessageFlow = () => {
   const [selectedModuleId, setSelectedModuleId] = useState<string>('');
   const [currentFlowId, setCurrentFlowId] = useState<string | null>(null);
   const [steps, setSteps] = useState<StepUI[]>([]); // Local state for editing steps
+  const [originalSteps, setOriginalSteps] = useState<StepUI[]>([]);
+  const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingStep, setEditingStep] = useState<StepUI | null>(null);
   const [newStepContent, setNewStepContent] = useState<string>('');
@@ -119,8 +123,8 @@ const MessageFlow = () => {
       await updateMessageFlowSteps(currentFlowId, payload, token);
     },
     onSuccess: (data, updatedSteps) => {
-      setSteps(updatedSteps); 
       queryClient.invalidateQueries({ queryKey: ['messageFlows', selectedModuleId, token] });
+      setHasChanges(false);
       console.log('Message flow steps updated successfully');
     },
     onError: (error) => {
@@ -130,32 +134,48 @@ const MessageFlow = () => {
 
   // --- Effects --- 
 
-  // Effect to reset state when module selection changes
+  // Effect to reset state when module selection changes OR after successful fetch
   useEffect(() => {
     setCurrentFlowId(null);
     setSteps([]);
+    setOriginalSteps([]);
+    setHasChanges(false);
+
     // If a module is selected, try to find the first active flow
     if (selectedModuleId && messageFlows.length > 0) {
-        // Prioritize active flows, otherwise take the first one
         const activeFlow = messageFlows.find(flow => flow.is_active);
         const flowToEdit = activeFlow || messageFlows[0]; 
         
         if (flowToEdit) {
           setCurrentFlowId(flowToEdit.id);
           // Map backend steps to simplified UI steps with temporary IDs
-          setSteps(flowToEdit.steps.map((step, index) => ({
-             id: `step-${index}-${Date.now()}`, // Generate temporary unique ID
+          const initialSteps = flowToEdit.steps.map((step, index) => ({
+             id: `step-${index}-${Date.now()}-${Math.random()}`, // Improve uniqueness slightly
              message_content: step.message_content,
-          })));
+          }));
+          setSteps(initialSteps);
+          setOriginalSteps(initialSteps);
         }
     }
   }, [selectedModuleId, messageFlows]); // Rerun when selection or fetched flows change
+
+  // --- NEW: Effect to track changes ---
+  useEffect(() => {
+      // Compare current steps to original steps (simple JSON comparison)
+      // This relies on the temporary IDs being stable between renders until a fetch
+      const originalString = JSON.stringify(originalSteps.map(s => s.message_content));
+      const currentString = JSON.stringify(steps.map(s => s.message_content));
+      // Only set changes if not currently loading/updating (prevents flicker)
+      if (!isLoadingFlows && !isUpdatingSteps) {
+          setHasChanges(originalString !== currentString);
+      }
+  }, [steps, originalSteps, isLoadingFlows, isUpdatingSteps]);
 
   // --- Event Handlers --- 
 
   const handleModuleChange = (event: SelectChangeEvent) => {
     setSelectedModuleId(event.target.value);
-    // Resetting flow ID and steps is handled by the useEffect
+    // State resets are handled by the useEffect
   };
 
   const handleDragEnd = (result: DropResult) => {
@@ -165,7 +185,7 @@ const MessageFlow = () => {
     const items = Array.from(steps);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    updateStepsMutation(items); // Trigger mutation with new order
+    setSteps(items);
   };
 
   const handleMoveStep = (stepId: string, direction: 'up' | 'down') => {
@@ -180,7 +200,7 @@ const MessageFlow = () => {
     const newSteps = [...steps];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]];
-    updateStepsMutation(newSteps); // Trigger mutation with new order
+    setSteps(newSteps);
   };
 
   const handleAddStep = () => {
@@ -207,19 +227,31 @@ const MessageFlow = () => {
     } else {
       // Add new step to the end
       const newStep: StepUI = {
-        id: `new-step-${Date.now()}`, // Temporary ID
+        id: `new-step-${Date.now()}-${Math.random()}`, // Temporary ID
         message_content: newStepContent,
       };
       updatedSteps = [...steps, newStep];
     }
     setOpenDialog(false);
-    updateStepsMutation(updatedSteps); // Trigger mutation
+    setSteps(updatedSteps);
   };
 
   const handleDeleteStep = (stepId: string) => {
     const updatedSteps = steps.filter(s => s.id !== stepId);
-    updateStepsMutation(updatedSteps); // Trigger mutation
+    setSteps(updatedSteps);
   };
+
+  // --- NEW: Save and Reset Handlers ---
+  const handleSaveChanges = () => {
+    if (hasChanges && currentFlowId) {
+      updateStepsMutation(steps);
+    }
+  };
+
+  const handleResetChanges = useCallback(() => {
+    setSteps(originalSteps);
+    setHasChanges(false);
+  }, [originalSteps]);
 
   // --- Render Logic --- 
 
@@ -263,6 +295,27 @@ const MessageFlow = () => {
             </Select>
           </FormControl>
         </Grid>
+        <Grid item>
+           {/* --- NEW: Save/Reset Buttons --- */}
+           <Button
+             variant="outlined"
+             onClick={handleResetChanges}
+             disabled={!hasChanges || isUpdatingSteps || isLoadingFlows}
+             startIcon={<CancelIcon />}
+             sx={{ mr: 1 }} // Add margin
+           >
+            Reset Changes
+          </Button>
+           <Button
+             variant="contained"
+             color="primary"
+             onClick={handleSaveChanges}
+             disabled={!hasChanges || isUpdatingSteps || isLoadingFlows}
+             startIcon={<SaveIcon />}
+           >
+            {isUpdatingSteps ? 'Saving...' : 'Save Changes'}
+          </Button>
+         </Grid>
         <Grid item>
           <Button
              variant="contained"
