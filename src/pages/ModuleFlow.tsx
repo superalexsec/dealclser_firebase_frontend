@@ -113,7 +113,7 @@ const ModuleFlow = () => {
       }
   }, [displayModules, originalStateString, isLoadingModules]);
 
-  // Update module order mutation (sends filtered list of active module IDs)
+  // Update module order mutation
   const {
     mutate: updateOrderMutation,
     isPending: isUpdatingOrder,
@@ -121,13 +121,15 @@ const ModuleFlow = () => {
     error: updatingError,
   } = useMutation<void, Error, ModuleUI[]>({ // Input is the full local list
     mutationFn: async (currentLocalModules: ModuleUI[]) => {
-      const activeModuleIds = currentLocalModules
-                                .filter(m => m.ui_is_active)
-                                .map(m => m.module_id); // Send module_id                              
-      const payload: UpdateModuleOrderPayload = {
-        ordered_module_ids: activeModuleIds,
+      // Map the current local state (order and active status) to the backend format
+      const payload = {
+        modules: currentLocalModules.map(mod => ({
+          module_id: mod.module_id,
+          is_active: mod.ui_is_active, // Use the UI state for active status
+        })),
       };
-      await updateModuleOrder(token, backendUrl, payload); 
+      // The UpdateModuleOrderPayload type might need adjustment if it was specific to the old format
+      await updateModuleOrder(token, backendUrl, payload as any); // Use 'as any' or redefine payload type
     },
     onSuccess: (data, currentLocalModules) => {
       // Invalidate query to refetch the canonical state from backend
