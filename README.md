@@ -1,85 +1,86 @@
-# ZapCentral - Plataforma de Integração WhatsApp Business
+# DealCloser Frontend
 
-![ZapCentral Logo](./public/zap_central.png)
+This is the frontend application for the DealCloser platform, built with React and TypeScript.
 
-ZapCentral é uma plataforma multi-tenant para gerenciamento de interações via WhatsApp Business, integrando calendário, contratos e pagamentos em um único lugar.
+## Overview
 
-## 🚀 Funcionalidades
+This application provides the user interface for tenants to manage their WhatsApp bot interactions, including:
 
-- 📱 Integração com WhatsApp Business API
-- 📅 Agendamento automático via Google Calendar
-- 📄 Geração e assinatura de contratos
-- 💳 Integração com MercadoPago
-- 👥 Sistema multi-tenant
-- 📊 Dashboard com análise de dados
-- 🔄 Fluxos de mensagens personalizáveis
-- 🏢 Gestão de múltiplos clientes
+*   **Dashboard:** Overview of key metrics and recent activity.
+*   **Messaging Flow Configuration:**
+    *   **Module Flow:** Define the sequence of different interaction modules (e.g., Welcome, Verification, Scheduling).
+    *   **Message Flow:** Define the specific messages within each module.
+*   **Client Management:** (Placeholder for Client Service interaction)
+*   **Calendar Integration:** (Placeholder for Calendar interaction)
+*   **PDF Generation/Signing:** (Placeholders for PDF/Signing Service interaction)
+*   **Settings & Profile:** Manage tenant and user profile information.
 
-## 🛠 Tecnologias
+## Tech Stack
 
-- React 18
-- TypeScript
-- Material-UI
-- React Query
-- React Router
-- Google Cloud Platform
-  - Cloud Run
-  - Cloud SQL (PostgreSQL)
-  - Secret Manager
+*   **Framework/Library:** React 18+
+*   **Language:** TypeScript
+*   **UI Components:** Material UI (MUI) v5
+*   **Routing:** React Router v6
+*   **State Management:**
+    *   Server State: TanStack Query (React Query) v4/v5
+    *   Client State: React Context API (for Auth)
+*   **API Client:** Axios
+*   **Drag & Drop:** react-beautiful-dnd
+*   **Styling:** MUI (primarily)
 
-## 📦 Instalação
+## Setup and Running Locally
 
-```bash
-# Clone o repositório
-git clone https://github.com/superalexsec/zapcentral-frontend.git
+1.  **Prerequisites:** Node.js (v18+) and npm/yarn.
+2.  **Install Dependencies:**
+    ```bash
+    npm install
+    # or
+    # yarn install
+    ```
+3.  **Configuration:**
+    *   **Backend URL:** The application expects the backend API URL to be available globally via `window.runtimeConfig.backendUrl`. This is typically injected at runtime, for example, through a script in `public/index.html` that reads an environment variable or configuration file.
+      *Example (`public/index.html` snippet):*
+      ```html
+      <script>
+        window.runtimeConfig = {
+          backendUrl: '${BACKEND_API_URL}' // Replace with actual URL injection method
+        };
+      </script>
+      ```
+    *   **Authentication Token:** The application expects the JWT authentication token to be stored in `localStorage` under the key `authToken` after a successful login. Ensure the authentication flow/context (`src/contexts/AuthContext.tsx`) implements this.
+4.  **Run Development Server:**
+    ```bash
+    npm start
+    # or
+    # yarn start
+    ```
+    This will typically start the application on `http://localhost:3000`.
 
-# Entre no diretório
-cd zapcentral-frontend
+## Key Components & Structure
 
-# Instale as dependências
-npm install
+*   `src/`: Main source code directory.
+    *   `App.tsx`: Root component, sets up providers (Theme, React Query, Auth) and routing.
+    *   `components/`: Reusable UI components (e.g., `Layout.tsx`).
+    *   `contexts/`: React Context providers (e.g., `AuthContext.tsx`).
+    *   `hooks/`: Custom React hooks.
+    *   `lib/`: Utility functions and libraries (e.g., `api.ts` for Axios configuration).
+    *   `pages/`: Top-level components representing application pages/routes (e.g., `Dashboard.tsx`, `ModuleFlow.tsx`).
+    *   `theme/`: MUI theme configuration.
+*   `public/`: Static assets and the main `index.html` file.
 
-# Inicie o servidor de desenvolvimento
-npm start
-```
+## API Interaction
 
-## 🔧 Configuração
+*   All backend communication is handled via the configured Axios instance in `src/lib/api.ts`.
+*   This instance automatically retrieves the `backendUrl` from `window.runtimeConfig` and adds the `Authorization: Bearer <token>` header using the token stored in `localStorage`.
+*   Server state (fetching, caching, updates) is managed using TanStack Query (`useQuery`, `useMutation`).
 
-1. Crie um arquivo `.env` baseado no `.env.example`
-2. Configure as variáveis de ambiente necessárias
-3. Configure as credenciais do WhatsApp Business API
-4. Configure as integrações (Google Calendar, MercadoPago, etc.)
+## Available Scripts
 
-## 🌐 Ambiente de Produção
+*   `npm start` / `yarn start`: Runs the app in development mode.
+*   `npm run build` / `yarn build`: Builds the app for production to the `build` folder.
+*   `npm test` / `yarn test`: Launches the test runner (if configured).
+*   `npm run eject` / `yarn eject`: (If using Create React App) Exposes the underlying configuration.
 
-```bash
-# Build do projeto
-npm run build
+## Deployment
 
-# Deploy para o Google Cloud Run
-gcloud builds submit --config cloudbuild.yaml
-```
-
-## 📝 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
-
-## 🤝 Contribuição
-
-1. Faça um Fork do projeto
-2. Crie uma Branch para sua Feature (`git checkout -b feature/AmazingFeature`)
-3. Faça o Commit das suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Faça o Push para a Branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📫 Contato
-
-- Website: [zapcentral.com.br](https://zapcentral.com.br)
-- Email: [contato@zapcentral.com.br](mailto:contato@zapcentral.com.br)
-
-## 🙏 Agradecimentos
-
-- WhatsApp Business API
-- Google Cloud Platform
-- MercadoPago
-- Dropbox Sign 
+This application is designed to be built into static assets (`npm run build`) which can then be served by any static file server or hosting platform (like GCP Cloud Storage, Netlify, Vercel, etc.). Ensure the `window.runtimeConfig.backendUrl` is correctly injected during the deployment or container startup process.

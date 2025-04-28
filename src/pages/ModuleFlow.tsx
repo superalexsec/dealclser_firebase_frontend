@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -8,242 +8,318 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   IconButton,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   Alert,
-  Divider,
+  CircularProgress,
+  Button,
+  Stack,
+  Tooltip,
 } from '@mui/material';
 import {
   DragIndicator as DragIcon,
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
   ArrowUpward as ArrowUpIcon,
   ArrowDownward as ArrowDownIcon,
+  Visibility as VisibilityOnIcon,
+  VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
+import { BackendModuleOrderEntry, ModuleOrderResponse, UpdateModuleOrderPayload } from '../lib/api';
 
-interface Module {
-  id: string;
-  name: string;
-  description: string;
-  order: number;
-  isActive: boolean;
+// API functions
+const fetchModuleOrder = async (token: string | null, backendUrl: string | undefined): Promise<ModuleOrderResponse> => {
+  if (!token) throw new Error('Authentication token not found.');
+  if (!backendUrl) throw new Error('Backend URL is not configured.');
+
+  const { data } = await axios.get<ModuleOrderResponse>(
+    `${backendUrl}/flows/modules/order`, 
+    {
+      headers: { Authorization: `Bearer ${token}` } // Manually add header
+    }
+  );
+  return data.sort((a, b) => a.order_position - b.order_position);
+};
+
+const updateModuleOrder = async (token: string | null, backendUrl: string | undefined, payload: UpdateModuleOrderPayload): Promise<void> => {
+  if (!token) throw new Error('Authentication token not found.');
+  if (!backendUrl) throw new Error('Backend URL is not configured.');
+
+  await axios.put(
+    `${backendUrl}/flows/modules/order`, 
+    payload, 
+    {
+      headers: { 
+        Authorization: `Bearer ${token}`, // Manually add header
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+};
+
+// Frontend Module type (derived from BackendModule for UI needs)
+interface ModuleUI extends BackendModuleOrderEntry {
+  ui_is_active: boolean;
 }
 
 const ModuleFlow = () => {
-  const [modules, setModules] = useState<Module[]>([
-    {
-      id: '1',
-      name: 'Welcome Messages',
-      description: 'Initial greeting and introduction messages',
-      order: 1,
-      isActive: true,
-    },
-    {
-      id: '2',
-      name: 'Client Verification',
-      description: 'CPF/CNPJ verification and client data collection',
-      order: 2,
-      isActive: true,
-    },
-    {
-      id: '3',
-      name: 'Thank You Messages',
-      description: 'Final messages and follow-up',
-      order: 3,
-      isActive: true,
-    },
-  ]);
+  const queryClient = useQueryClient();
+  const { token } = useAuth(); // Get token from context
+  const backendUrl = window.runtimeConfig?.backendUrl;
 
-  const [openDialog, setOpenDialog] = useState(false);
-  const [editingModule, setEditingModule] = useState<Module | null>(null);
-  const [newModule, setNewModule] = useState<Partial<Module>>({
-    name: '',
-    description: '',
-    order: modules.length + 1,
-    isActive: true,
+  // Local state for the modules being ordered/toggled by the user
+  const [displayModules, setDisplayModules] = useState<ModuleUI[]>([]);
+  // State to track if local changes differ from fetched data
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Fetch ALL module order entries (active and inactive)
+  const {
+    data: fetchedEntries = [], // Contains the full list as returned by API
+    isLoading: isLoadingModules,
+    isError: isErrorLoading,
+    error: loadingError,
+  } = useQuery<ModuleOrderResponse, Error, BackendModuleOrderEntry[]>({ // Fetch original type
+    queryKey: ['moduleOrder', token],
+    queryFn: () => fetchModuleOrder(token, backendUrl), 
+    enabled: !!token && !!backendUrl, 
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000, 
   });
 
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
+  // Effect to initialize/reset local display state when fetched data changes
+  useEffect(() => {
+    // console.log("Fetched Modules Data:", JSON.stringify(fetchedEntries, null, 2)); // Keep for debug if needed
+    // Map ALL fetched entries to the UI state, initializing ui_is_active from fetched is_active
+    const initialModules = fetchedEntries.map(entry => ({ ...entry, ui_is_active: entry.is_active }));
+    setDisplayModules(initialModules);
+    setHasChanges(false); // Reset changes on new fetch
+  }, [fetchedEntries]);
 
-    const items = Array.from(modules);
+  // Memoized calculation of original state string for comparison
+  const originalStateString = useMemo(() => {
+      const originalOrder = fetchedEntries.map(entry => entry.module_id); // Use module_id for order
+      const originalActives = fetchedEntries.map(entry => entry.is_active); // Use actual is_active
+      return JSON.stringify({ order: originalOrder, actives: originalActives });
+  }, [fetchedEntries]);
+
+  // Effect to check if local display state differs from original fetched state
+  useEffect(() => {
+      const currentOrder = displayModules.map(mod => mod.module_id);
+      const currentActives = displayModules.map(mod => mod.ui_is_active);
+      const currentStateString = JSON.stringify({ order: currentOrder, actives: currentActives });
+      // Only set changes if not currently loading (prevents flicker on initial load)
+      if (!isLoadingModules) { 
+        setHasChanges(currentStateString !== originalStateString);
+      }
+  }, [displayModules, originalStateString, isLoadingModules]);
+
+  // Update module order mutation (sends filtered list of active module IDs)
+  const {
+    mutate: updateOrderMutation,
+    isPending: isUpdatingOrder,
+    isError: isErrorUpdating,
+    error: updatingError,
+  } = useMutation<void, Error, ModuleUI[]>({ // Input is the full local list
+    mutationFn: async (currentLocalModules: ModuleUI[]) => {
+      const activeModuleIds = currentLocalModules
+                                .filter(m => m.ui_is_active)
+                                .map(m => m.module_id); // Send module_id                              
+      const payload: UpdateModuleOrderPayload = {
+        ordered_module_ids: activeModuleIds,
+      };
+      await updateModuleOrder(token, backendUrl, payload); 
+    },
+    onSuccess: (data, currentLocalModules) => {
+      // Invalidate query to refetch the canonical state from backend
+      queryClient.invalidateQueries({ queryKey: ['moduleOrder', token] });
+      // hasChanges will be reset by useEffect when new data arrives
+      console.log('Module order updated successfully');
+    },
+    onError: (error) => {
+      console.error('Failed to update module order:', error);
+      // Optionally show error notification
+    },
+  });
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination || result.destination.index === result.source.index) {
+      return;
+    }
+    const items = Array.from(displayModules); // Use local display state
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-
-    // Update order numbers
-    const updatedItems = items.map((item, index) => ({
-      ...item,
-      order: index + 1,
-    }));
-
-    setModules(updatedItems);
-  };
-
-  const handleAddModule = () => {
-    setEditingModule(null);
-    setNewModule({
-      name: '',
-      description: '',
-      order: modules.length + 1,
-      isActive: true,
-    });
-    setOpenDialog(true);
-  };
-
-  const handleEditModule = (module: Module) => {
-    setEditingModule(module);
-    setNewModule(module);
-    setOpenDialog(true);
-  };
-
-  const handleSaveModule = () => {
-    if (editingModule) {
-      setModules(modules.map(m => 
-        m.id === editingModule.id ? { ...newModule, id: m.id } as Module : m
-      ));
-    } else {
-      setModules([...modules, { ...newModule, id: Date.now().toString() } as Module]);
-    }
-    setOpenDialog(false);
-  };
-
-  const handleDeleteModule = (id: string) => {
-    setModules(modules.filter(m => m.id !== id));
+    setDisplayModules(items); // Update local state only
   };
 
   const handleMoveModule = (id: string, direction: 'up' | 'down') => {
-    const index = modules.findIndex(m => m.id === id);
+    // Use the ID of the ModuleOrderEntry (tenant_module_order record)
+    const index = displayModules.findIndex(m => m.id === id); 
     if (
       (direction === 'up' && index === 0) ||
-      (direction === 'down' && index === modules.length - 1)
+      (direction === 'down' && index === displayModules.length - 1)
     ) {
       return;
     }
-
-    const newModules = [...modules];
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    [newModules[index], newModules[newIndex]] = [newModules[newIndex], newModules[index]];
-
-    // Update order numbers
-    const updatedModules = newModules.map((module, i) => ({
-      ...module,
-      order: i + 1,
-    }));
-
-    setModules(updatedModules);
+    const newModules = [...displayModules]; // Use local display state
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    [newModules[index], newModules[targetIndex]] = [newModules[targetIndex], newModules[index]];
+    setDisplayModules(newModules); // Update local state only
   };
+
+  // Save button triggers mutation with the current local display state
+  const handleSaveChanges = () => {
+    if (hasChanges) {
+      updateOrderMutation(displayModules);
+    }
+  };
+
+  // Reset button reverts local state to match the last fetched data
+  const handleResetChanges = useCallback(() => {
+    const initialModules = fetchedEntries.map(entry => ({ ...entry, ui_is_active: entry.is_active }));
+    setDisplayModules(initialModules);
+    setHasChanges(false);
+  }, [fetchedEntries]);
+
+  // Toggle the local UI active state for a module entry
+  const handleToggleActive = (moduleOrderEntryId: string) => {
+    setDisplayModules(currentModules => 
+       currentModules.map(mod => 
+         // Use the ID of the ModuleOrderEntry (tenant_module_order record)
+         mod.id === moduleOrderEntryId ? { ...mod, ui_is_active: !mod.ui_is_active } : mod
+       )
+    );
+  };
+
+  // --- Render Logic ---
+
+  if (isLoadingModules) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Loading Module Flow...</Typography>
+      </Box>
+    );
+  }
+
+  // Combine loading and updating errors for display
+  const apiError = loadingError || updatingError;
+  const hasApiError = isErrorLoading || isErrorUpdating;
 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Module Flow</Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleAddModule}
-        >
-          Add Module
-        </Button>
+        <Typography variant="h4">Module Flow Order</Typography>
+        <Stack direction="row" spacing={2}>
+          <Button
+            variant="outlined"
+            onClick={handleResetChanges}
+            disabled={!hasChanges || isUpdatingOrder}
+          >
+            Reset Order
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSaveChanges}
+            disabled={!hasChanges || isUpdatingOrder}
+          >
+            {isUpdatingOrder ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </Stack>
       </Box>
 
+      {hasApiError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {`API Error: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`}
+        </Alert>
+      )}
+
+      {!hasApiError && isUpdatingOrder && (
+         <Alert severity="info" sx={{ mb: 3 }}>Updating module order...</Alert>
+      )}
+
       <Alert severity="info" sx={{ mb: 3 }}>
-        Drag and drop modules to reorder them. The order determines the sequence of messages sent to clients.
+        Reorder modules or toggle their inclusion using the eye icon. Click 'Save Changes' to update the flow.
       </Alert>
 
-      <Paper>
+      <Paper sx={{ opacity: isUpdatingOrder ? 0.7 : 1 }}>
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="modules">
             {(provided) => (
-              <List {...provided.droppableProps} ref={provided.innerRef}>
-                {modules.map((module, index) => (
-                  <Draggable key={module.id} draggableId={module.id} index={index}>
-                    {(provided) => (
-                      <ListItem
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        sx={{
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          mb: 1,
-                          borderRadius: 1,
-                        }}
-                      >
-                        <Box {...provided.dragHandleProps} sx={{ mr: 2 }}>
-                          <DragIcon />
-                        </Box>
-                        <ListItemText
-                          primary={module.name}
-                          secondary={module.description}
-                        />
-                        <ListItemSecondaryAction>
-                          <IconButton
-                            onClick={() => handleMoveModule(module.id, 'up')}
-                            disabled={index === 0}
-                          >
-                            <ArrowUpIcon />
-                          </IconButton>
-                          <IconButton
-                            onClick={() => handleMoveModule(module.id, 'down')}
-                            disabled={index === modules.length - 1}
-                          >
-                            <ArrowDownIcon />
-                          </IconButton>
-                          <IconButton onClick={() => handleEditModule(module)}>
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton onClick={() => handleDeleteModule(module.id)}>
-                            <DeleteIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    )}
-                  </Draggable>
-                ))}
+              <List {...provided.droppableProps} ref={provided.innerRef} sx={{ p: 2 }}>
+                {displayModules.length === 0 && !isLoadingModules && !hasApiError && (
+                  <ListItem>
+                    <ListItemText primary="No modules found or configured for this tenant." />
+                  </ListItem>
+                )}
+                {displayModules.map((moduleEntry, index) => {
+                  return (
+                    <Draggable key={moduleEntry.id} draggableId={moduleEntry.id} index={index}>
+                      {(provided, snapshot) => (
+                        <ListItem
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          sx={{
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            mb: 1,
+                            borderRadius: 1,
+                            bgcolor: snapshot.isDragging ? 'action.hover' : 'background.paper',
+                            userSelect: 'none',
+                            opacity: moduleEntry.ui_is_active ? 1 : 0.5,
+                          }}
+                          component={Paper}
+                          elevation={snapshot.isDragging ? 3 : 1}
+                        >
+                          <Box {...provided.dragHandleProps} sx={{ mr: 2, display: 'flex', alignItems: 'center' }}>
+                            <DragIcon />
+                          </Box>
+                          <ListItemText
+                            primary={`${index + 1}. ${moduleEntry.module.name || `Module ${moduleEntry.module_id.substring(0, 8)}...`}`}
+                            secondary={moduleEntry.module.description || 'No description available.'}
+                            primaryTypographyProps={{ 
+                              style: { textDecoration: moduleEntry.ui_is_active ? 'none' : 'line-through' } 
+                            }}
+                            secondaryTypographyProps={{
+                              style: { textDecoration: moduleEntry.ui_is_active ? 'none' : 'line-through' } 
+                            }}
+                          />
+                          <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Tooltip title={moduleEntry.ui_is_active ? "Mark as Inactive (will be excluded on save)" : "Mark as Active (will be included on save)"}>
+                              <IconButton
+                                onClick={() => handleToggleActive(moduleEntry.id)}
+                                disabled={isUpdatingOrder}
+                                color={moduleEntry.ui_is_active ? 'primary' : 'default'}
+                              >
+                                {moduleEntry.ui_is_active ? <VisibilityOnIcon /> : <VisibilityOffIcon />}
+                              </IconButton>
+                            </Tooltip>
+                            <IconButton
+                              onClick={() => handleMoveModule(moduleEntry.id, 'up')}
+                              disabled={index === 0 || isUpdatingOrder}
+                              aria-label="Move Up"
+                            >
+                              <ArrowUpIcon />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => handleMoveModule(moduleEntry.id, 'down')}
+                              disabled={index === displayModules.length - 1 || isUpdatingOrder}
+                              aria-label="Move Down"
+                            >
+                              <ArrowDownIcon />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      )}
+                    </Draggable>
+                  );
+                })}
                 {provided.placeholder}
               </List>
             )}
           </Droppable>
         </DragDropContext>
       </Paper>
-
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingModule ? 'Edit Module' : 'Add New Module'}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Module Name"
-            fullWidth
-            value={newModule.name}
-            onChange={(e) => setNewModule({ ...newModule, name: e.target.value })}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            margin="dense"
-            label="Description"
-            fullWidth
-            multiline
-            rows={3}
-            value={newModule.description}
-            onChange={(e) => setNewModule({ ...newModule, description: e.target.value })}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSaveModule} variant="contained" color="primary">
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };
