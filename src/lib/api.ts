@@ -136,4 +136,31 @@ export type MessageFlowsResponse = BackendMessageFlow[];
 // Backend expects an array of step objects, each containing message_content
 export interface UpdateMessageFlowStepsPayload {
   steps: Pick<MessageFlowStep, 'message_content'>[]; 
-} 
+}
+
+// Fetch module order (can potentially reuse query data)
+export const fetchModuleOrder = async (token?: string | null): Promise<ModuleOrderResponse> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.get<ModuleOrderResponse>('/flows/modules/order', config);
+  return data.sort((a, b) => a.order_position - b.order_position);
+};
+
+// Fetch message flows for a specific module
+export const fetchMessageFlowsForModule = async (moduleId: string, token?: string | null): Promise<MessageFlowsResponse> => {
+  if (!moduleId) return []; // Don't fetch if no module is selected
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.get<MessageFlowsResponse>(`/flows/message-flows/module/${moduleId}`, config);
+  // Maybe sort flows if needed? e.g., by name or is_active
+  return data;
+};
+
+// Update the steps of a specific message flow
+export const updateMessageFlowSteps = async (
+  flowId: string,
+  payload: UpdateMessageFlowStepsPayload,
+  token?: string | null
+): Promise<void> => {
+  if (!flowId) throw new Error('Flow ID is required to update steps.');
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  await apiClient.put(`/flows/message-flows/${flowId}/steps`, payload, config);
+}; 

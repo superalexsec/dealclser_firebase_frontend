@@ -43,32 +43,11 @@ import apiClient,
   MessageFlowsResponse,
   MessageFlowStep,
   UpdateMessageFlowStepsPayload,
+  fetchModuleOrder,
+  fetchMessageFlowsForModule,
+  updateMessageFlowSteps,
 } from '../lib/api';
-
-// --- API Functions --- (Moved outside component for clarity)
-
-// Fetch module order (can potentially reuse query data)
-const fetchModuleOrder = async (): Promise<ModuleOrderResponse> => {
-  const { data } = await apiClient.get<ModuleOrderResponse>('/flows/modules/order');
-  return data.sort((a, b) => a.order_position - b.order_position);
-};
-
-// Fetch message flows for a specific module
-const fetchMessageFlowsForModule = async (moduleId: string): Promise<MessageFlowsResponse> => {
-  if (!moduleId) return []; // Don't fetch if no module is selected
-  const { data } = await apiClient.get<MessageFlowsResponse>(`/flows/message-flows/module/${moduleId}`);
-  // Maybe sort flows if needed? e.g., by name or is_active
-  return data;
-};
-
-// Update the steps of a specific message flow
-const updateMessageFlowSteps = async (
-  flowId: string,
-  payload: UpdateMessageFlowStepsPayload
-): Promise<void> => {
-  if (!flowId) throw new Error('Flow ID is required to update steps.');
-  await apiClient.put(`/flows/message-flows/${flowId}/steps`, payload);
-};
+import { useAuth } from '../contexts/AuthContext';
 
 // --- Component --- 
 
@@ -80,6 +59,7 @@ interface StepUI {
 
 const MessageFlow = () => {
   const queryClient = useQueryClient();
+  const { token } = useAuth();
   const [selectedModuleId, setSelectedModuleId] = useState<string>('');
   const [currentFlowId, setCurrentFlowId] = useState<string | null>(null);
   const [steps, setSteps] = useState<StepUI[]>([]); // Local state for editing steps
@@ -96,9 +76,9 @@ const MessageFlow = () => {
     isError: isErrorLoadingModules,
     error: moduleLoadingError,
   } = useQuery<ModuleOrderResponse, Error, BackendModuleOrderEntry[]>({ 
-    queryKey: ['moduleOrder'], // Reuse query key from ModuleFlow page
-    queryFn: fetchModuleOrder,
-    // Ensure data is potentially available from cache
+    queryKey: ['moduleOrder', token],
+    queryFn: () => token ? fetchModuleOrder(token) : Promise.reject(new Error('Not authenticated')),
+    enabled: !!token,
     staleTime: 5 * 60 * 1000, // 5 minutes 
     gcTime: 15 * 60 * 1000, // 15 minutes (gcTime replaces cacheTime in v4/v5)
   });
@@ -111,9 +91,12 @@ const MessageFlow = () => {
     isError: isErrorLoadingFlows,
     error: flowLoadingError,
   } = useQuery<MessageFlowsResponse, Error>({ 
-    queryKey: ['messageFlows', selectedModuleId],
-    queryFn: () => fetchMessageFlowsForModule(selectedModuleId),
-    enabled: !!selectedModuleId, // Only run query when selectedModuleId is set
+    queryKey: ['messageFlows', selectedModuleId, token],
+    queryFn: () => 
+      token && selectedModuleId 
+        ? fetchMessageFlowsForModule(selectedModuleId, token) 
+        : Promise.reject(new Error('Module not selected or not authenticated')),
+    enabled: !!selectedModuleId && !!token,
     staleTime: 1 * 60 * 1000, // 1 minute
   });
 
@@ -128,25 +111,20 @@ const MessageFlow = () => {
   } = useMutation<void, Error, StepUI[]>({ // Input is the new list of steps
     mutationFn: async (updatedSteps: StepUI[]) => {
       if (!currentFlowId) throw new Error('Cannot update steps without a selected flow ID.');
+      if (!token) throw new Error('Not authenticated');
       
       const payload: UpdateMessageFlowStepsPayload = {
-        // Map UI steps back to the structure expected by the backend
         steps: updatedSteps.map(step => ({ message_content: step.message_content }))
       };
-      await updateMessageFlowSteps(currentFlowId, payload);
+      await updateMessageFlowSteps(currentFlowId, payload, token);
     },
     onSuccess: (data, updatedSteps) => {
-      // Update the local steps state immediately for better UX
       setSteps(updatedSteps); 
-      // Optionally invalidate the query to refetch, but local update might be enough
-      queryClient.invalidateQueries({ queryKey: ['messageFlows', selectedModuleId] });
+      queryClient.invalidateQueries({ queryKey: ['messageFlows', selectedModuleId, token] });
       console.log('Message flow steps updated successfully');
-      // Maybe show a success snackbar
     },
     onError: (error) => {
       console.error('Failed to update message flow steps:', error);
-      // Show error message to the user
-      // Potentially revert local state if optimistic update was done differently
     },
   });
 
