@@ -30,7 +30,7 @@ import {
   Apple as AppleIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-import axios from 'axios';
+import apiClient from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const HeroSection = styled(Box)(({ theme }) => ({
@@ -114,7 +114,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
         navigate('/dashboard');
       } else {
         console.warn('Registration attempt via AuthDialog');
-        const response = await axios.post<AuthResponse>('/api/auth/register', {
+        const response = await apiClient.post<AuthResponse>('/api/auth/register', {
           email,
           password,
           name,
@@ -140,7 +140,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
   const handleSocialLogin = async (provider: string) => {
     setLoading(true);
     try {
-      const response = await axios.post<AuthResponse>(`/api/auth/${provider}`, { provider });
+      const response = await apiClient.post<AuthResponse>(`/api/auth/${provider}`, { provider });
       login(response.data.token);
       onClose();
       navigate('/dashboard');

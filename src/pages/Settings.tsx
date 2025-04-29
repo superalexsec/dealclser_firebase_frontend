@@ -21,7 +21,12 @@ import {
   Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import apiClient, { 
+    WhatsappConfig, 
+    WhatsappConfigUpdate,
+    fetchWhatsappConfig,
+    updateWhatsappConfig
+} from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 interface TabPanelProps {
@@ -57,54 +62,9 @@ function a11yProps(index: number) {
   };
 }
 
-// Interfaces for WhatsApp Config
-interface WhatsappConfig {
-  phone_number_id: string | null;
-  phone_number: string | null;
-  verification_token: string | null;
-  access_token: string | null;
-  webhook_url: string | null;
-  is_active: boolean;
-  webhook_verified: boolean;
-  // Other fields from GET response are not needed for display/update here
-}
-
-interface WhatsappConfigUpdate {
-  phone_number_id?: string | null;
-  phone_number?: string | null;
-  access_token?: string | null; // Sent on PUT, not received on GET
-  verification_token?: string | null;
-  // We don't update webhook URL/verified/is_active from this form for now
-}
-
-// API call functions
-const fetchWhatsappConfig = async (token: string | null, backendUrl: string | undefined): Promise<WhatsappConfig> => {
-  if (!token) throw new Error('Authentication token not found.');
-  if (!backendUrl) throw new Error('Backend URL is not configured.');
-
-  const response = await axios.get<WhatsappConfig>(`${backendUrl}/tenants/me/whatsapp-config`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
-};
-
-const updateWhatsappConfig = async (token: string | null, backendUrl: string | undefined, data: WhatsappConfigUpdate): Promise<WhatsappConfig> => {
-  if (!token) throw new Error('Authentication token not found.');
-  if (!backendUrl) throw new Error('Backend URL is not configured.');
-
-  const response = await axios.put<WhatsappConfig>(`${backendUrl}/tenants/me/whatsapp-config`, data, {
-    headers: { 
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-     },
-  });
-  return response.data;
-};
-
 const Settings = () => {
   const [tabValue, setTabValue] = useState(0);
   const { token } = useAuth();
-  const backendUrl = window.runtimeConfig?.backendUrl;
   const queryClient = useQueryClient();
 
   // --- WhatsApp Tab State & Logic ---
@@ -118,8 +78,8 @@ const Settings = () => {
   // Fetch current config
   const { data: currentConfig, isLoading: isLoadingConfig, error: fetchError } = useQuery<WhatsappConfig, Error>({ 
     queryKey: ['whatsappConfig', token],
-    queryFn: () => fetchWhatsappConfig(token, backendUrl),
-    enabled: !!token && !!backendUrl,
+    queryFn: () => fetchWhatsappConfig(token),
+    enabled: !!token,
     staleTime: Infinity, // Keep data fresh until manually invalidated
     refetchOnWindowFocus: false,
     });
@@ -146,7 +106,7 @@ const Settings = () => {
 
   // Update mutation
   const mutation = useMutation<WhatsappConfig, Error, WhatsappConfigUpdate>({ 
-    mutationFn: (updateData) => updateWhatsappConfig(token, backendUrl, updateData),
+    mutationFn: (updateData) => updateWhatsappConfig(updateData, token),
     onSuccess: (data) => {
       queryClient.setQueryData(['whatsappConfig', token], data); // Update cache with response
       setIsEditingWhatsapp(false); // Exit edit mode

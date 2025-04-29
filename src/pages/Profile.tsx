@@ -33,95 +33,19 @@ import {
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import apiClient, { 
+    TenantData, 
+    TenantUpdate, 
+    fetchTenantData, 
+    updateTenantData, 
+    logoutTenant, 
+    deleteTenant 
+} from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-interface TenantData {
-  name: string;
-  email: string;
-  phone: string;
-  person_name: string;
-  address: string;
-  is_active: boolean;
-  id: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface TenantUpdate {
-  name?: string;
-  phone?: string;
-  person_name?: string;
-  address?: string;
-}
-
-const fetchTenantData = async (token: string | null, backendUrl: string | undefined): Promise<TenantData> => {
-  if (!token) {
-    throw new Error('Authentication token not found.');
-  }
-  if (!backendUrl) {
-    throw new Error('Backend URL is not configured.');
-  }
-
-  const response = await axios.get<TenantData>(`${backendUrl}/users/me`, {
-    headers: { 
-      Authorization: `Bearer ${token}` 
-    },
-  });
-  return response.data;
-};
-
-const updateTenantData = async (token: string | null, backendUrl: string | undefined, data: TenantUpdate): Promise<TenantData> => {
-  if (!token) {
-    throw new Error('Authentication token not found.');
-  }
-  if (!backendUrl) {
-    throw new Error('Backend URL is not configured.');
-  }
-
-  const response = await axios.put<TenantData>(`${backendUrl}/tenants/me`, data, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  return response.data;
-};
-
-const logoutTenant = async (token: string | null, backendUrl: string | undefined): Promise<void> => {
-  if (!token) {
-    throw new Error('Authentication token not found.');
-  }
-  if (!backendUrl) {
-    throw new Error('Backend URL is not configured.');
-  }
-
-  await axios.post(`${backendUrl}/logout`, {}, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-};
-
-const deleteTenant = async (token: string | null, backendUrl: string | undefined): Promise<void> => {
-  if (!token) {
-    throw new Error('Authentication token not found.');
-  }
-  if (!backendUrl) {
-    throw new Error('Backend URL is not configured.');
-  }
-
-  await axios.delete(`${backendUrl}/tenants/me`, {
-    headers: { 
-      Authorization: `Bearer ${token}` 
-    },
-  });
-};
-
 const Profile = () => {
   const { token, logout } = useAuth();
-  const backendUrl = window.runtimeConfig?.backendUrl;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -133,8 +57,8 @@ const Profile = () => {
 
   const { data: profile, isLoading, error: queryError } = useQuery<TenantData, Error>({
     queryKey: ['tenantData', token],
-    queryFn: () => fetchTenantData(token, backendUrl),
-    enabled: !!token && !!backendUrl,
+    queryFn: () => fetchTenantData(token),
+    enabled: !!token,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
@@ -158,7 +82,7 @@ const Profile = () => {
   }, [profile, isEditing]);
 
   const updateMutation = useMutation<TenantData, Error, TenantUpdate>({
-    mutationFn: (updateData) => updateTenantData(token, backendUrl, updateData),
+    mutationFn: (updateData) => updateTenantData(updateData, token),
     onSuccess: (data) => {
       queryClient.setQueryData(['tenantData', token], data);
       setIsEditing(false);
@@ -173,7 +97,7 @@ const Profile = () => {
   });
 
   const logoutMutation = useMutation<void, Error>({
-    mutationFn: () => logoutTenant(token, backendUrl),
+    mutationFn: () => logoutTenant(token),
     onSuccess: () => {
       logout();
       queryClient.clear();
@@ -182,7 +106,7 @@ const Profile = () => {
   });
 
   const deleteMutation = useMutation<void, Error>({
-    mutationFn: () => deleteTenant(token, backendUrl),
+    mutationFn: () => deleteTenant(token),
     onSuccess: () => {
       queryClient.clear();
       logout();

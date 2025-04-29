@@ -1,23 +1,17 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-// Helper to get the backend URL from the runtime config injected into the window
-const getBackendUrl = (): string => {
-  // Access the configuration potentially set by an external script (e.g., in index.html)
-  const url = (window as any).runtimeConfig?.backendUrl;
-  if (!url) {
-    console.error('Backend URL (window.runtimeConfig.backendUrl) is not configured!');
-    // Provide a default fallback for local development or throw an error
-    // Throwing an error might be safer to prevent unexpected behavior
-    // return 'http://localhost:8000'; // Example fallback for local dev
-     throw new Error('Backend URL is not configured.');
-  }
-  return url;
-};
+// Use environment variable for backend URL
+const backendUrl = process.env.REACT_APP_BACKEND_URL;
+
+if (!backendUrl) {
+  console.error('Backend URL environment variable REACT_APP_BACKEND_URL is not configured!');
+  // Optionally throw error during development if not set
+  // throw new Error('REACT_APP_BACKEND_URL is not set.');
+}
 
 const apiClient: AxiosInstance = axios.create({
-  // Base URL is set dynamically by the interceptor to ensure it uses the latest
-  // value from window.runtimeConfig, in case it's loaded asynchronously.
-  // baseURL: getBackendUrl(), // Setting initial baseURL is still good practice
+  // Set baseURL from environment variable during initialization
+  baseURL: backendUrl, 
   headers: {
     'Content-Type': 'application/json',
   },
@@ -34,15 +28,8 @@ apiClient.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Ensure the baseURL is always up-to-date from the runtime config
-    // This handles cases where the config might be loaded after initial setup
-    try {
-        config.baseURL = getBackendUrl();
-    } catch (error) {
-        // Log the error but allow the request to proceed.
-        // If the URL is truly missing/invalid, the request will likely fail later.
-        console.error("Failed to update backend URL in interceptor, request might fail:", error);
-    }
+    // REMOVED dynamic baseURL update logic
+    // The baseURL is now set once during creation from the env var
 
     return config;
   },
@@ -76,6 +63,44 @@ export default apiClient;
 
 // --- Type Definitions for API Payloads ---
 
+// --- Profile Types --- 
+export interface TenantData {
+  name: string;
+  email: string;
+  phone: string;
+  person_name: string;
+  address: string;
+  is_active: boolean;
+  id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TenantUpdate {
+  name?: string;
+  phone?: string;
+  person_name?: string;
+  address?: string;
+}
+
+// --- Settings Types (WhatsApp Config) ---
+export interface WhatsappConfig {
+  phone_number_id: string | null;
+  phone_number: string | null;
+  verification_token: string | null;
+  access_token: string | null;
+  webhook_url: string | null;
+  is_active: boolean;
+  webhook_verified: boolean;
+}
+
+export interface WhatsappConfigUpdate {
+  phone_number_id?: string | null;
+  phone_number?: string | null;
+  access_token?: string | null; 
+  verification_token?: string | null;
+}
+
 // Represents the structure of a module as returned by the backend's module order endpoint
 export interface BackendModuleData {
   name: string;
@@ -97,10 +122,21 @@ export interface BackendModuleOrderEntry {
 // Type for the response of GET /flows/modules/order
 export type ModuleOrderResponse = BackendModuleOrderEntry[];
 
+// --- NEW: Add definition for ModuleUI used in frontend ---
+// This extends the backend type with a UI-specific flag
+export interface ModuleUI extends BackendModuleOrderEntry {
+    ui_is_active: boolean;
+}
 
 // Type for the request payload of PUT /flows/modules/order
+// --- UPDATED: Match the actual payload sent by ModuleFlow.tsx ---
+export interface ModuleUpdateData {
+    module_id: string;
+    is_active: boolean;
+}
 export interface UpdateModuleOrderPayload {
-  ordered_module_ids: string[];
+  // ordered_module_ids: string[]; // Original incorrect type
+  modules: ModuleUpdateData[];
 } 
 
 // --- Types for PATCHing Module Order Active Status --- (Assumed Endpoint)
@@ -138,6 +174,15 @@ export interface UpdateMessageFlowStepsPayload {
   steps: Pick<MessageFlowStep, 'message_content'>[]; 
 }
 
+// --- ADD Definition for updateModuleOrder --- 
+export const updateModuleOrder = async (payload: UpdateModuleOrderPayload, token?: string | null): Promise<ModuleOrderResponse> => {
+    // --- DIAGNOSTIC LOG --- 
+    console.log('updateModuleOrder apiClient defaults:', apiClient.defaults);
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    const { data } = await apiClient.put<ModuleOrderResponse>('/flows/modules/order', payload, config);
+    return data; // Assuming backend returns the updated list like the GET
+};
+
 // Fetch module order (can potentially reuse query data)
 export const fetchModuleOrder = async (token?: string | null): Promise<ModuleOrderResponse> => {
   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
@@ -163,4 +208,52 @@ export const updateMessageFlowSteps = async (
   if (!flowId) throw new Error('Flow ID is required to update steps.');
   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
   await apiClient.put(`/flows/message-flows/${flowId}/steps`, payload, config);
+}; 
+
+// --- Profile API Functions ---
+export const fetchTenantData = async (token?: string | null): Promise<TenantData> => {
+    if (!token) throw new Error('Authentication token is required.');
+    const { data } = await apiClient.get<TenantData>('/users/me', { 
+        headers: { Authorization: `Bearer ${token}` } 
+    });
+    return data;
+};
+
+export const updateTenantData = async (updateData: TenantUpdate, token?: string | null): Promise<TenantData> => {
+    if (!token) throw new Error('Authentication token is required.');
+    const { data } = await apiClient.put<TenantData>('/tenants/me', updateData, { 
+        headers: { Authorization: `Bearer ${token}` } 
+    });
+    return data;
+};
+
+export const logoutTenant = async (token?: string | null): Promise<void> => {
+    if (!token) throw new Error('Authentication token is required.');
+    await apiClient.post('/logout', {}, { 
+        headers: { Authorization: `Bearer ${token}` } 
+    });
+};
+
+export const deleteTenant = async (token?: string | null): Promise<void> => {
+    if (!token) throw new Error('Authentication token is required.');
+    await apiClient.delete('/tenants/me', { 
+        headers: { Authorization: `Bearer ${token}` } 
+    });
+};
+
+// --- Settings API Functions ---
+export const fetchWhatsappConfig = async (token?: string | null): Promise<WhatsappConfig> => {
+    if (!token) throw new Error('Authentication token is required.');
+    const { data } = await apiClient.get<WhatsappConfig>('/tenants/me/whatsapp-config', { 
+        headers: { Authorization: `Bearer ${token}` } 
+    });
+    return data;
+};
+
+export const updateWhatsappConfig = async (updateData: WhatsappConfigUpdate, token?: string | null): Promise<WhatsappConfig> => {
+    if (!token) throw new Error('Authentication token is required.');
+    const { data } = await apiClient.put<WhatsappConfig>('/tenants/me/whatsapp-config', updateData, { 
+        headers: { Authorization: `Bearer ${token}` } 
+    });
+    return data;
 }; 

@@ -25,42 +25,14 @@ import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautif
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import { BackendModuleOrderEntry, ModuleOrderResponse, UpdateModuleOrderPayload } from '../lib/api';
-
-// API functions
-const fetchModuleOrder = async (token: string | null, backendUrl: string | undefined): Promise<ModuleOrderResponse> => {
-  if (!token) throw new Error('Authentication token not found.');
-  if (!backendUrl) throw new Error('Backend URL is not configured.');
-
-  const { data } = await axios.get<ModuleOrderResponse>(
-    `${backendUrl}/flows/modules/order`, 
-    {
-      headers: { Authorization: `Bearer ${token}` } // Manually add header
-    }
-  );
-  return data.sort((a, b) => a.order_position - b.order_position);
-};
-
-const updateModuleOrder = async (token: string | null, backendUrl: string | undefined, payload: UpdateModuleOrderPayload): Promise<void> => {
-  if (!token) throw new Error('Authentication token not found.');
-  if (!backendUrl) throw new Error('Backend URL is not configured.');
-
-  await axios.put(
-    `${backendUrl}/flows/modules/order`, 
-    payload, 
-    {
-      headers: { 
-        Authorization: `Bearer ${token}`, // Manually add header
-        'Content-Type': 'application/json'
-      }
-    }
-  );
-};
-
-// Frontend Module type (derived from BackendModule for UI needs)
-interface ModuleUI extends BackendModuleOrderEntry {
-  ui_is_active: boolean;
-}
+import {
+  BackendModuleOrderEntry,
+  ModuleOrderResponse,
+  UpdateModuleOrderPayload,
+  ModuleUI,
+  fetchModuleOrder,
+  updateModuleOrder,
+} from '../lib/api';
 
 const ModuleFlow = () => {
   const queryClient = useQueryClient();
@@ -80,8 +52,8 @@ const ModuleFlow = () => {
     error: loadingError,
   } = useQuery<ModuleOrderResponse, Error, BackendModuleOrderEntry[]>({ // Fetch original type
     queryKey: ['moduleOrder', token],
-    queryFn: () => fetchModuleOrder(token, backendUrl), 
-    enabled: !!token && !!backendUrl, 
+    queryFn: () => token ? fetchModuleOrder(token) : Promise.reject(new Error('Not authenticated')), 
+    enabled: !!token,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000, 
   });
@@ -121,20 +93,17 @@ const ModuleFlow = () => {
     error: updatingError,
   } = useMutation<void, Error, ModuleUI[]>({ // Input is the full local list
     mutationFn: async (currentLocalModules: ModuleUI[]) => {
-      // Map the current local state (order and active status) to the backend format
-      const payload = {
+      if (!token) throw new Error('Not authenticated');
+      const payload: UpdateModuleOrderPayload = {
         modules: currentLocalModules.map(mod => ({
           module_id: mod.module_id,
-          is_active: mod.ui_is_active, // Use the UI state for active status
+          is_active: mod.ui_is_active,
         })),
       };
-      // The UpdateModuleOrderPayload type might need adjustment if it was specific to the old format
-      await updateModuleOrder(token, backendUrl, payload as any); // Use 'as any' or redefine payload type
+      await updateModuleOrder(payload, token);
     },
     onSuccess: (data, currentLocalModules) => {
-      // Invalidate query to refetch the canonical state from backend
       queryClient.invalidateQueries({ queryKey: ['moduleOrder', token] });
-      // hasChanges will be reset by useEffect when new data arrives
       console.log('Module order updated successfully');
     },
     onError: (error) => {

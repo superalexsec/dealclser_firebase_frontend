@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../lib/api';
 
 // Add type definition for the runtime config if not already global
 // (Assuming it might be used elsewhere, making it global is fine)
@@ -29,7 +29,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
   // isAuthenticated can be derived from token presence
   const isAuthenticated = !!token;
   const [loading, setLoading] = useState(true);
@@ -41,19 +41,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Function to call the /token endpoint
   const loginWithCredentials = async (credentials: LoginCredentials) => {
-    const backendUrl = window.runtimeConfig?.backendUrl;
-    if (!backendUrl) {
-      throw new Error('Backend URL is not configured');
-    }
-
-    // Prepare form data
     const params = new URLSearchParams();
     params.append('username', credentials.email || ''); // Backend expects 'username'
     params.append('password', credentials.password || '');
 
     try {
-      const response = await axios.post(
-        `${backendUrl}/token`, 
+      const response = await apiClient.post(
+        '/token', 
         params, // Send URLSearchParams
         {
           headers: { 
@@ -67,11 +61,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         throw new Error('Login failed: No access token received');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login API call failed:", error);
       // Rethrow or handle specific error messages from backend if available
-      if (axios.isAxiosError(error) && error.response) {
-        throw new Error(error.response.data.detail || 'Invalid credentials');
+      if (error.response && error.response.data && error.response.data.detail) {
+        throw new Error(error.response.data.detail);
       } else {
         throw new Error('Login failed. Please try again.');
       }
@@ -80,12 +74,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Simplified login just stores the token
   const login = (newToken: string) => {
-    localStorage.setItem('token', newToken);
+    localStorage.setItem('authToken', newToken);
     setToken(newToken);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
     setToken(null);
     // Optionally redirect to login page or home page
     // window.location.href = '/'; 

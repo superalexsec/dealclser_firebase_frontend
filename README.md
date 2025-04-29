@@ -1,6 +1,6 @@
-# DealCloser Frontend
+# ZapCentral Frontend
 
-This is the frontend application for the DealCloser platform, built with React and TypeScript.
+This is the frontend application for the ZapCentral tenant platform, built with React and TypeScript.
 
 ## Overview
 
@@ -8,12 +8,12 @@ This application provides the user interface for tenants to manage their WhatsAp
 
 *   **Dashboard:** Overview of key metrics and recent activity.
 *   **Messaging Flow Configuration:**
-    *   **Module Flow:** Define the sequence of different interaction modules (e.g., Welcome, Verification, Scheduling).
-    *   **Message Flow:** Define the specific messages within each module.
+    *   **Module Flow:** Define the sequence of different interaction modules (e.g., Welcome, Verification, Scheduling). Allows reordering and activating/deactivating modules.
+    *   **Message Flow:** Define the specific messages within each module. Allows adding, editing, deleting, and reordering message steps.
 *   **Client Management:** (Placeholder for Client Service interaction)
 *   **Calendar Integration:** (Placeholder for Calendar interaction)
 *   **PDF Generation/Signing:** (Placeholders for PDF/Signing Service interaction)
-*   **Settings & Profile:** Manage tenant and user profile information.
+*   **Settings & Profile:** Manage tenant account details, API configurations (WhatsApp Business, Dropbox Sign), and user profile information.
 
 ## Tech Stack
 
@@ -22,7 +22,7 @@ This application provides the user interface for tenants to manage their WhatsAp
 *   **UI Components:** Material UI (MUI) v5
 *   **Routing:** React Router v6
 *   **State Management:**
-    *   Server State: TanStack Query (React Query) v4/v5
+    *   Server State: TanStack Query (React Query) v5
     *   Client State: React Context API (for Auth)
 *   **API Client:** Axios
 *   **Drag & Drop:** react-beautiful-dnd
@@ -38,15 +38,12 @@ This application provides the user interface for tenants to manage their WhatsAp
     # yarn install
     ```
 3.  **Configuration:**
-    *   **Backend URL:** The application expects the backend API URL to be available globally via `window.runtimeConfig.backendUrl`. This is typically injected at runtime, for example, through a script in `public/index.html` that reads an environment variable or configuration file.
-      *Example (`public/index.html` snippet):*
-      ```html
-      <script>
-        window.runtimeConfig = {
-          backendUrl: '${BACKEND_API_URL}' // Replace with actual URL injection method
-        };
-      </script>
-      ```
+    *   **Backend URL:** The application requires the backend API URL to be configured via an environment variable named `REACT_APP_BACKEND_URL`. Create a `.env` file in the project root (copy from `.env.example`) and set the variable:
+        ```dotenv
+        # .env
+        REACT_APP_BACKEND_URL=https://your-backend-service-url.run.app
+        ```
+        This variable is embedded into the application during the build process (`npm run build`). **Do not commit your `.env` file to version control.**
     *   **Authentication Token:** The application expects the JWT authentication token to be stored in `localStorage` under the key `authToken` after a successful login. Ensure the authentication flow/context (`src/contexts/AuthContext.tsx`) implements this.
 4.  **Run Development Server:**
     ```bash
@@ -64,14 +61,15 @@ This application provides the user interface for tenants to manage their WhatsAp
     *   `contexts/`: React Context providers (e.g., `AuthContext.tsx`).
     *   `hooks/`: Custom React hooks.
     *   `lib/`: Utility functions and libraries (e.g., `api.ts` for Axios configuration).
-    *   `pages/`: Top-level components representing application pages/routes (e.g., `Dashboard.tsx`, `ModuleFlow.tsx`).
+    *   `pages/`: Top-level components representing application pages/routes (e.g., `Dashboard.tsx`, `ModuleFlow.tsx`, `MessageFlow.tsx`, `Settings.tsx`, `Profile.tsx`).
     *   `theme/`: MUI theme configuration.
 *   `public/`: Static assets and the main `index.html` file.
 
 ## API Interaction
 
 *   All backend communication is handled via the configured Axios instance in `src/lib/api.ts`.
-*   This instance automatically retrieves the `backendUrl` from `window.runtimeConfig` and adds the `Authorization: Bearer <token>` header using the token stored in `localStorage`.
+*   The Axios instance reads the `baseURL` from the `REACT_APP_BACKEND_URL` environment variable at build time.
+*   A request interceptor automatically adds the `Authorization: Bearer <token>` header using the token stored in `localStorage` (key: `authToken`).
 *   Server state (fetching, caching, updates) is managed using TanStack Query (`useQuery`, `useMutation`).
 
 ## Available Scripts
@@ -81,6 +79,16 @@ This application provides the user interface for tenants to manage their WhatsAp
 *   `npm test` / `yarn test`: Launches the test runner (if configured).
 *   `npm run eject` / `yarn eject`: (If using Create React App) Exposes the underlying configuration.
 
-## Deployment
+## Deployment (Firebase Hosting)
 
-This application is designed to be built into static assets (`npm run build`) which can then be served by any static file server or hosting platform (like GCP Cloud Storage, Netlify, Vercel, etc.). Ensure the `window.runtimeConfig.backendUrl` is correctly injected during the deployment or container startup process.
+This application is designed to be built into static assets (`npm run build`) and deployed using Firebase Hosting.
+
+1.  **Install Firebase CLI:** `npm install -g firebase-tools`
+2.  **Login:** `firebase login`
+3.  **Initialize Firebase:** Run `firebase init hosting` in the project root.
+    *   Select your Firebase project.
+    *   Set the public directory to `build`.
+    *   Configure as a single-page app (SPA): **Yes**.
+4.  **Set Backend URL Environment Variable:** Ensure the `REACT_APP_BACKEND_URL` environment variable is set correctly in your deployment environment *before* running the build command. How you set this depends on your CI/CD provider (e.g., using secrets or environment variables in GitHub Actions, Cloud Build, etc.).
+5.  **Build:** `npm run build`
+6.  **Deploy:** `firebase deploy --only hosting`

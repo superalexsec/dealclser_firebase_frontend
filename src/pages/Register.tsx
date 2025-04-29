@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import apiClient from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -30,27 +30,13 @@ interface RegisterResponse {
   // Add other fields from the response if you need them
 }
 
-// Add type definition for the runtime config
-declare global {
-  interface Window {
-    runtimeConfig?: {
-      backendUrl?: string;
-    };
-  }
-}
-
 // Function to perform the API call
 const registerTenant = async (data: RegisterData): Promise<RegisterResponse> => {
-  // Read from the runtime config injected via config.js
-  const backendUrl = window.runtimeConfig?.backendUrl;
-  if (!backendUrl) {
-    console.error('Runtime config:', window.runtimeConfig); // Log for debugging
-    throw new Error('Backend URL is not configured');
-  }
-  const response = await axios.post<RegisterResponse>(`${backendUrl}/register`, data, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
+  const response = await apiClient.post<RegisterResponse>('/register', data, {
+    // Headers are likely handled by apiClient defaults or interceptors if needed
+    // If specific headers ARE needed for registration (like Content-Type),
+    // ensure apiClient defaults cover it or add them here explicitly.
+    // Since we are sending JSON, apiClient's default 'Content-Type': 'application/json' should be correct.
   });
   return response.data;
 };
