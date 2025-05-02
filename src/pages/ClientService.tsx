@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -15,169 +15,268 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
+  Alert,
+  Snackbar,
+  SelectChangeEvent,
 } from '@mui/material';
 import { Add as AddIcon, Person as PersonIcon } from '@mui/icons-material';
-
-interface Client {
-  id: string;
-  name: string;
-  cpf: string;
-  email: string;
-  phone: string;
-  address: string;
-  type: 'individual' | 'company';
-  status: 'active' | 'inactive';
-}
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../contexts/AuthContext';
+import { fetchClients, createClient, Client, ClientCreate } from '../lib/api';
 
 const ClientService: React.FC = () => {
-  const [clients, setClients] = useState<Client[]>([
-    {
-      id: '1',
-      name: 'João Silva',
-      cpf: '123.456.789-00',
-      email: 'joao@example.com',
-      phone: '(11) 99999-9999',
-      address: 'Rua Exemplo, 123',
-      type: 'individual',
-      status: 'active',
-    },
-  ]);
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
 
   const [openDialog, setOpenDialog] = useState(false);
-  const [newClient, setNewClient] = useState<Partial<Client>>({
-    name: '',
-    cpf: '',
-    email: '',
-    phone: '',
-    address: '',
-    type: 'individual',
-    status: 'active',
+  const [newClient, setNewClient] = useState<Partial<ClientCreate>>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
+
+  const { data: clients = [], isLoading, error: fetchError } = useQuery<Client[], Error>({
+    queryKey: ['clients', token],
+    queryFn: () => fetchClients(0, 100, token),
+    enabled: !!token,
+    refetchOnWindowFocus: false,
+  });
+
+  const createClientMutation = useMutation<Client, Error, ClientCreate>({
+    mutationFn: (clientData) => createClient(clientData, token),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['clients', token] });
+      setOpenDialog(false);
+      setNewClient({});
+      setSaveError(null);
+      setShowSuccessSnackbar(true);
+      console.log('Client created:', data);
+    },
+    onError: (error) => {
+      console.error("Failed to create client:", error);
+      setSaveError(error.message || 'Failed to save client. Please check the details and try again.');
+    },
   });
 
   const handleAddClient = () => {
-    setNewClient({
-      name: '',
-      cpf: '',
-      email: '',
-      phone: '',
-      address: '',
-      type: 'individual',
-      status: 'active',
-    });
+    setNewClient({});
+    setSaveError(null);
     setOpenDialog(true);
   };
 
   const handleSaveClient = () => {
-    const newId = (clients.length + 1).toString();
-    setClients([...clients, { ...newClient, id: newId } as Client]);
+    if (!newClient.first_name || !newClient.surname || !newClient.client_identification) {
+        setSaveError('First Name, Surname, and CPF/CNPJ (Client Identification) are required.');
+        return;
+    }
+    setSaveError(null);
+
+    const payload: ClientCreate = {
+      first_name: newClient.first_name,
+      surname: newClient.surname,
+      client_identification: newClient.client_identification,
+      address: newClient.address || null,
+      city: newClient.city || null,
+      state: newClient.state || null,
+      country: newClient.country || 'Brasil',
+      client_phone_number: newClient.client_phone_number || null,
+      email: newClient.email || null,
+      zip_code: newClient.zip_code || null,
+    };
+    
+    createClientMutation.mutate(payload);
+  };
+
+  const handleCloseDialog = () => {
     setOpenDialog(false);
+    setNewClient({});
+    setSaveError(null);
+  };
+
+  const handleInputChange = (field: keyof ClientCreate) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>) => {
+    setNewClient(prev => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleCloseSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setShowSuccessSnackbar(false);
   };
 
   return (
     <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Client Service</Typography>
+        <Typography variant="h4">Client Management</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleAddClient}
+          disabled={isLoading}
         >
           New Client
         </Button>
       </Box>
 
-      <Grid container spacing={3}>
-        {clients.map((client) => (
-          <Grid item xs={12} md={6} lg={4} key={client.id}>
-            <Card>
-              <CardContent>
-                <Box display="flex" alignItems="center" mb={2}>
-                  <PersonIcon color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6">{client.name}</Typography>
-                </Box>
-                <Typography variant="body1">
-                  CPF/CNPJ: {client.cpf}
-                </Typography>
-                <Typography variant="body1">
-                  Email: {client.email}
-                </Typography>
-                <Typography variant="body1">
-                  Phone: {client.phone}
-                </Typography>
-                <Typography variant="body1">
-                  Address: {client.address}
-                </Typography>
-                <Typography variant="body1">
-                  Type: {client.type}
-                </Typography>
-                <Typography variant="body1" color={client.status === 'active' ? 'primary' : 'text.secondary'}>
-                  Status: {client.status}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      {isLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+          <CircularProgress />
+        </Box>
+      )}
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+      {fetchError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Failed to load clients: {fetchError.message}
+        </Alert>
+      )}
+
+      {!isLoading && !fetchError && (
+        <Grid container spacing={3}>
+          {clients.map((client) => (
+            <Grid item xs={12} md={6} lg={4} key={client.id}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center" mb={2}>
+                    <PersonIcon color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="h6">{`${client.first_name || ''} ${client.surname || ''}`.trim()}</Typography>
+                  </Box>
+                  <Typography variant="body1" gutterBottom>
+                    CPF/CNPJ: {client.client_identification || 'N/A'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Email: {client.email || 'N/A'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Phone: {client.client_phone_number || 'N/A'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Address: {[client.address, client.city, client.state, client.zip_code, client.country].filter(Boolean).join(', ') || 'N/A'}
+                  </Typography>
+                  {client.custom_field && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          Custom Field: {client.custom_field}
+                      </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+          {clients.length === 0 && (
+            <Grid item xs={12}>
+                <Typography sx={{ textAlign: 'center', mt: 4 }}>No clients found.</Typography>
+            </Grid>
+           )}
+        </Grid>
+      )}
+
+      <Dialog open={openDialog} onClose={handleCloseDialog}>
         <DialogTitle>New Client</DialogTitle>
         <DialogContent>
+          {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
           <TextField
             autoFocus
             margin="dense"
-            label="Name"
+            label="First Name"
             fullWidth
-            value={newClient.name}
-            onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+            required
+            value={newClient.first_name ?? ''}
+            onChange={handleInputChange('first_name')}
+            disabled={createClientMutation.isPending}
           />
           <TextField
             margin="dense"
-            label="CPF/CNPJ"
+            label="Surname"
             fullWidth
-            value={newClient.cpf}
-            onChange={(e) => setNewClient({ ...newClient, cpf: e.target.value })}
+            required
+            value={newClient.surname ?? ''}
+            onChange={handleInputChange('surname')}
+            disabled={createClientMutation.isPending}
+          />
+          <TextField
+            margin="dense"
+            label="CPF/CNPJ (Client Identification)"
+            fullWidth
+            required
+            value={newClient.client_identification ?? ''}
+            onChange={handleInputChange('client_identification')}
+            disabled={createClientMutation.isPending}
           />
           <TextField
             margin="dense"
             label="Email"
             type="email"
             fullWidth
-            value={newClient.email}
-            onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+            value={newClient.email ?? ''}
+            onChange={handleInputChange('email')}
+            disabled={createClientMutation.isPending}
           />
           <TextField
             margin="dense"
             label="Phone"
             fullWidth
-            value={newClient.phone}
-            onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+            value={newClient.client_phone_number ?? ''}
+            onChange={handleInputChange('client_phone_number')}
+            disabled={createClientMutation.isPending}
           />
           <TextField
             margin="dense"
             label="Address"
             fullWidth
-            value={newClient.address}
-            onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
+            value={newClient.address ?? ''}
+            onChange={handleInputChange('address')}
+            disabled={createClientMutation.isPending}
           />
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Type</InputLabel>
-            <Select
-              value={newClient.type}
-              label="Type"
-              onChange={(e) => setNewClient({ ...newClient, type: e.target.value as Client['type'] })}
-            >
-              <MenuItem value="individual">Individual</MenuItem>
-              <MenuItem value="company">Company</MenuItem>
-            </Select>
-          </FormControl>
+          <TextField
+            margin="dense"
+            label="City"
+            fullWidth
+            value={newClient.city ?? ''}
+            onChange={handleInputChange('city')}
+            disabled={createClientMutation.isPending}
+          />
+          <TextField
+            margin="dense"
+            label="State"
+            fullWidth
+            value={newClient.state ?? ''}
+            onChange={handleInputChange('state')}
+            disabled={createClientMutation.isPending}
+          />
+          <TextField
+            margin="dense"
+            label="Zip Code"
+            fullWidth
+            value={newClient.zip_code ?? ''}
+            onChange={handleInputChange('zip_code')}
+            disabled={createClientMutation.isPending}
+          />
+          <TextField
+            margin="dense"
+            label="Country"
+            fullWidth
+            value={newClient.country ?? 'Brasil'}
+            onChange={handleInputChange('country')}
+            disabled={createClientMutation.isPending}
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button onClick={handleSaveClient} variant="contained">
-            Save
+          <Button onClick={handleCloseDialog} disabled={createClientMutation.isPending}>Cancel</Button>
+          <Button 
+            onClick={handleSaveClient} 
+            variant="contained" 
+            disabled={createClientMutation.isPending}
+          >
+            {createClientMutation.isPending ? <CircularProgress size={24} /> : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={showSuccessSnackbar}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        message="Client saved successfully!"
+      />
+
     </Box>
   );
 };

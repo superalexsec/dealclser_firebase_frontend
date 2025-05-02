@@ -257,3 +257,90 @@ export const updateWhatsappConfig = async (updateData: WhatsappConfigUpdate, tok
     });
     return data;
 }; 
+
+// --- ADD Client Management Types ---
+
+// Matches schemas.Client from backend README
+export interface Client {
+    id: string;
+    tenant_id: string;
+    client_identification: string; // Renamed from cpf_cnpj
+    first_name: string; // Added
+    surname: string; // Added
+    // name: string; // Removed, use first_name and surname
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    client_phone_number: string | null; // Renamed from phone
+    email: string | null;
+    created_at: string; // ISO date string
+    updated_at: string; // ISO date string
+    zip_code: string | null; // Added based on DB
+    custom_field: string | null; // Added based on DB
+}
+
+// Matches schemas.ClientCreate from backend README
+export interface ClientCreate {
+    client_identification: string; // Renamed from cpf_cnpj
+    first_name: string; // Added
+    surname: string; // Added
+    // name: string; // Removed
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    client_phone_number?: string | null; // Renamed from phone
+    email?: string | null;
+    zip_code?: string | null; // Added based on DB
+    // custom_field is likely not set on creation unless specified
+}
+
+// Matches schemas.ClientUpdate from backend README
+// Typically allows updating a subset of fields
+export interface ClientUpdate {
+    first_name?: string; // Updated
+    surname?: string; // Added
+    // name?: string; // Removed
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    client_phone_number?: string | null; // Renamed from phone
+    email?: string | null;
+    zip_code?: string | null; // Added based on DB
+    // Don't usually allow changing client_identification or tenant_id
+}
+
+// --- ADD API Function Definitions ---
+
+// --- ADD Client API Functions ---
+
+// Fetch clients (GET /clients)
+export const fetchClients = async (skip: number = 0, limit: number = 100, token?: string | null): Promise<Client[]> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  // Add query parameters for pagination
+  const params = new URLSearchParams({ skip: skip.toString(), limit: limit.toString() });
+  // Add trailing slash to the endpoint URL
+  const { data } = await apiClient.get<Client[]>(`/clients/?${params.toString()}`, config);
+  return data;
+};
+
+// Create a new client (POST /clients)
+export const createClient = async (clientData: ClientCreate, token?: string | null): Promise<Client> => {
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    const { data } = await apiClient.post<Client>('/clients', clientData, config);
+    return data;
+};
+
+// --- OPTIONAL: Add Update and Delete Client Functions later if needed ---
+// export const updateClient = async (clientId: string, updateData: ClientUpdate, token?: string | null): Promise<Client> => {
+//   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+//   const { data } = await apiClient.put<Client>(`/clients/${clientId}`, updateData, config);
+//   return data;
+// };
+
+// export const deleteClient = async (clientId: string, token?: string | null): Promise<void> => {
+//   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+//   await apiClient.delete(`/clients/${clientId}`, config);
+// }; 
