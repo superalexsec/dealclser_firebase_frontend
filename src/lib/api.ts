@@ -329,7 +329,8 @@ export const fetchClients = async (skip: number = 0, limit: number = 100, token?
 // Create a new client (POST /clients)
 export const createClient = async (clientData: ClientCreate, token?: string | null): Promise<Client> => {
     const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-    const { data } = await apiClient.post<Client>('/clients', clientData, config);
+    // Add trailing slash to the endpoint URL
+    const { data } = await apiClient.post<Client>('/clients/', clientData, config);
     return data;
 };
 
