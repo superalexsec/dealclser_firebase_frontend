@@ -74,6 +74,7 @@ export interface TenantData {
   id: string;
   created_at: string;
   updated_at: string;
+  client_register_custom_question?: string | null;
 }
 
 export interface TenantUpdate {
@@ -309,6 +310,7 @@ export interface ClientUpdate {
     client_phone_number?: string | null; // Renamed from phone
     email?: string | null;
     zip_code?: string | null; // Added based on DB
+    custom_field?: string | null; // Added based on DB
     // Don't usually allow changing client_identification or tenant_id
 }
 
@@ -335,13 +337,17 @@ export const createClient = async (clientData: ClientCreate, token?: string | nu
 };
 
 // --- OPTIONAL: Add Update and Delete Client Functions later if needed ---
-// export const updateClient = async (clientId: string, updateData: ClientUpdate, token?: string | null): Promise<Client> => {
-//   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-//   const { data } = await apiClient.put<Client>(`/clients/${clientId}`, updateData, config);
-//   return data;
-// };
+export const updateClient = async (clientId: string, updateData: ClientUpdate, token?: string | null): Promise<Client> => {
+  if (!clientId) throw new Error('Client ID is required for update.');
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  // Remove trailing slash for individual resource PUT
+  const { data } = await apiClient.put<Client>(`/clients/${clientId}`, updateData, config);
+  return data;
+};
 
-// export const deleteClient = async (clientId: string, token?: string | null): Promise<void> => {
-//   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-//   await apiClient.delete(`/clients/${clientId}`, config);
-// }; 
+export const deleteClient = async (clientId: string, token?: string | null): Promise<void> => {
+  if (!clientId) throw new Error('Client ID is required for delete.');
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  // Remove trailing slash for individual resource DELETE
+  await apiClient.delete(`/clients/${clientId}`, config);
+}; 
