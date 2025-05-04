@@ -10,10 +10,11 @@ This application provides the user interface for tenants to manage their WhatsAp
 *   **Messaging Flow Configuration:**
     *   **Module Flow:** Define the sequence of different interaction modules (e.g., Welcome, Verification, Scheduling). Allows reordering and activating/deactivating modules.
     *   **Message Flow:** Define the specific messages within each module. Allows adding, editing, deleting, and reordering message steps.
-*   **Client Management:** (Placeholder for Client Service interaction)
-*   **Calendar Integration:** (Placeholder for Calendar interaction)
-*   **PDF Generation/Signing:** (Placeholders for PDF/Signing Service interaction)
+*   **Client Management:** View, add, edit, and delete client records.
+*   **Product Catalog:** Manage product categories and individual products (name, description, price, active status).
+*   **Cart Management:** View and manually add items to specific client carts.
 *   **Settings & Profile:** Manage tenant account details, API configurations (WhatsApp Business, Dropbox Sign), and user profile information.
+*   **(Placeholders):** Calendar Integration, PDF Generation/Signing.
 
 ## Tech Stack
 
@@ -57,11 +58,11 @@ This application provides the user interface for tenants to manage their WhatsAp
 
 *   `src/`: Main source code directory.
     *   `App.tsx`: Root component, sets up providers (Theme, React Query, Auth) and routing.
-    *   `components/`: Reusable UI components (e.g., `Layout.tsx`).
+    *   `components/`: Reusable UI components (e.g., `Layout.tsx`, `ProductDetailModal.tsx`, `AddProductDialog.tsx`).
     *   `contexts/`: React Context providers (e.g., `AuthContext.tsx`).
     *   `hooks/`: Custom React hooks.
-    *   `lib/`: Utility functions and libraries (e.g., `api.ts` for Axios configuration).
-    *   `pages/`: Top-level components representing application pages/routes (e.g., `Dashboard.tsx`, `ModuleFlow.tsx`, `MessageFlow.tsx`, `Settings.tsx`, `Profile.tsx`).
+    *   `lib/`: Utility functions and libraries (e.g., `api.ts` for Axios configuration and type definitions).
+    *   `pages/`: Top-level components representing application pages/routes (e.g., `Dashboard.tsx`, `ModuleFlow.tsx`, `MessageFlow.tsx`, `ProductsCatalogPage.tsx`, `CartPage.tsx`, `ClientService.tsx`, `Settings.tsx`, `Profile.tsx`).
     *   `theme/`: MUI theme configuration.
 *   `public/`: Static assets and the main `index.html` file.
 
