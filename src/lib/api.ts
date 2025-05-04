@@ -369,7 +369,14 @@ export interface Product {
   stock: number; // Assuming numeric stock (parsed in transformation too)
   category_id: string; // Foreign key to Category
   image_url?: string | null; // Optional image
+  is_active?: boolean; // <-- Add is_active status (assuming backend provides it)
   // Add other fields if available
+}
+
+// --- NEW: Type for creating a Category ---
+export interface CategoryCreate {
+    name: string;
+    description?: string | null;
 }
 
 // Response type for fetching multiple categories
@@ -473,6 +480,66 @@ export const fetchProducts = async (
   return transformedData; // Return the transformed data
 };
 
+// --- NEW: API function to create a Category ---
+export const createCategory = async (categoryData: CategoryCreate, token: string | null): Promise<Category> => {
+  if (!token) throw new Error('Authentication token is required.');
+  const response = await apiClient.post<Category>('/products-api/categories/', categoryData, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data;
+};
+
+// --- NEW: Type for creating a Product ---
+export interface ProductCreate {
+    name: string;
+    description?: string | null;
+    price: number;
+    stock: number;
+    category_id: string;
+    image_url?: string | null; // Assuming image URL can be set on creation
+}
+
+// --- NEW: API function to create a Product ---
+export const createProduct = async (productData: ProductCreate, token: string | null): Promise<Product> => {
+  if (!token) throw new Error('Authentication token is required.');
+  
+  // Ensure price is sent as a string if required by backend, otherwise keep as number
+  // const payload = { ...productData, price: productData.price.toString() };
+  const payload = productData; // Assuming backend accepts price as number based on Product type
+
+  const response = await apiClient.post<Product>('/products-api/products/', payload, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data;
+};
+
+// --- NEW: Type for updating a Product ---
+// Allow updating most fields, including is_active
+export interface ProductUpdate {
+    name?: string;
+    description?: string | null;
+    price?: number;
+    stock?: number;
+    category_id?: string;
+    image_url?: string | null;
+    is_active?: boolean; 
+}
+
+// --- NEW: API function to update a Product ---
+// Assuming PUT request to /products-api/products/{product_id}/
+export const updateProduct = async (productId: string, productData: ProductUpdate, token: string | null): Promise<Product> => {
+  if (!token) throw new Error('Authentication token is required.');
+  if (!productId) throw new Error('Product ID is required for update.');
+
+  // Ensure price is sent as a string if required by backend, otherwise keep as number
+  // const payload = { ...productData, price: productData.price?.toString() }; 
+  const payload = productData; // Assuming backend accepts price as number
+
+  const response = await apiClient.put<Product>(`/products-api/products/${productId}/`, payload, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data;
+};
 
 // --- Cart Functionality (Placeholder - Implementation Deferred) ---
 // TODO: Clarify CLIENT_UUID handling for tenant UI before implementing cart features.
