@@ -17,6 +17,7 @@ import TenantInfo from './pages/TenantInfo';
 import Register from './pages/Register';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProductsCatalogPage from './pages/ProductsCatalogPage';
+import CartPage from './pages/CartPage';
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,11 @@ const App: React.FC = () => {
               <Route path="/products" element={
                 <ProtectedRoute>
                   <ProductsCatalogPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/cart" element={
+                <ProtectedRoute>
+                  <CartPage />
                 </ProtectedRoute>
               } />
             </Routes>

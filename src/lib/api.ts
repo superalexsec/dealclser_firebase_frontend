@@ -541,6 +541,111 @@ export const updateProduct = async (productId: string, productData: ProductUpdat
   return response.data;
 };
 
+// --- Cart Types (Based on tenant_products_API.md and inferred structure) ---
+
+// Represents an item within the cart view response
+export interface CartItem {
+    product_id: string;
+    quantity: number;
+    // Add other product details if the API includes them (e.g., name, price)
+    // name?: string;
+    // price?: number;
+}
+
+// Represents the structure of the cart view response
+export interface Cart {
+    client_id: string;
+    items: CartItem[];
+    total_price?: number; // If the backend calculates and returns total
+    // Add other cart metadata if available
+}
+
+// Payload for adding an item to the cart
+export interface AddToCartPayload {
+    client_id: string;
+    product_id: string;
+    quantity: number;
+}
+
+// Payload for removing an item from the cart
+export interface RemoveFromCartPayload {
+    client_id: string;
+    product_id: string;
+}
+
+// Payload for clearing or checking out the cart
+export interface CartActionPayload {
+    client_id: string;
+}
+
+// --- Cart API Functions (Based on tenant_products_API.md) ---
+
+/**
+ * Fetches the cart contents for a specific client.
+ */
+export const fetchCart = async (clientId: string, token: string | null): Promise<Cart> => {
+    if (!token) throw new Error('Authentication token is required.');
+    if (!clientId) throw new Error('Client ID is required to fetch cart.');
+
+    const params = new URLSearchParams({ client_id: clientId });
+
+    const response = await apiClient.get<Cart>(`/products-api/cart/view`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: params,
+    });
+    return response.data;
+};
+
+/**
+ * Adds an item to a specific client's cart.
+ * NOTE: Unlikely to be used directly from Tenant Admin UI.
+ */
+export const addToCart = async (payload: AddToCartPayload, token: string | null): Promise<Cart> => {
+    if (!token) throw new Error('Authentication token is required.');
+    const response = await apiClient.post<Cart>('/products-api/cart/add', payload, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    // Assuming API returns the updated cart state
+    return response.data;
+};
+
+/**
+ * Removes an item from a specific client's cart.
+ */
+export const removeFromCart = async (payload: RemoveFromCartPayload, token: string | null): Promise<Cart> => {
+    if (!token) throw new Error('Authentication token is required.');
+    const response = await apiClient.post<Cart>('/products-api/cart/remove', payload, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    // Assuming API returns the updated cart state
+    return response.data;
+};
+
+/**
+ * Clears all items from a specific client's cart.
+ */
+export const clearCart = async (payload: CartActionPayload, token: string | null): Promise<Cart> => {
+    if (!token) throw new Error('Authentication token is required.');
+    const response = await apiClient.post<Cart>('/products-api/cart/clear', payload, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    // Assuming API returns the (now empty) cart state
+    return response.data;
+};
+
+/**
+ * Checks out a specific client's cart.
+ * NOTE: Unlikely to be used directly from Tenant Admin UI.
+ * The response type might vary depending on what checkout actually does.
+ */
+export const checkoutCart = async (payload: CartActionPayload, token: string | null): Promise<any> => {
+    if (!token) throw new Error('Authentication token is required.');
+    const response = await apiClient.post<any>('/products-api/cart/checkout', payload, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+};
+
 // --- Cart Functionality (Placeholder - Implementation Deferred) ---
 // TODO: Clarify CLIENT_UUID handling for tenant UI before implementing cart features.
 /*

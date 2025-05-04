@@ -27,6 +27,8 @@ import {
   PictureAsPdf as PDFIcon,
   Person as PersonIcon,
   Business as BusinessIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Category as CategoryIcon,
   ExpandLess,
   ExpandMore,
   Logout as LogoutIcon,
@@ -111,6 +113,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [open, setOpen] = useState(true);
   const [messagingOpen, setMessagingOpen] = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { logout: localLogout, token } = useAuth();
@@ -123,6 +126,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleMessagingClick = () => {
     setMessagingOpen(!messagingOpen);
+  };
+
+  const handleProductsClick = () => {
+    setProductsOpen(!productsOpen);
   };
 
   const logoutMutation = useMutation<void, Error>({ 
@@ -157,7 +164,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Client Service', icon: <PeopleIcon />, path: '/client-service' },
     { text: 'Calendar', icon: <CalendarTodayIcon />, path: '/calendar' },
     { text: 'PDF Service', icon: <PDFIcon />, path: '/pdf-service' },
-    { text: 'Product Catalog', icon: <StorefrontIcon />, path: '/products' },
+    { 
+      text: 'Products', 
+      icon: <StorefrontIcon />,
+      subItems: [
+        { text: 'Catalog', icon: <CategoryIcon />, path: '/products' },
+        { text: 'Cart', icon: <ShoppingCartIcon />, path: '/cart' },
+      ]
+    },
     { text: 'Tenant Info', icon: <BusinessIcon />, path: '/tenant-info' },
     { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
@@ -216,17 +230,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {menuItems.map((item) => (
             item.subItems ? (
               <React.Fragment key={item.text}>
-                <ListItemButton onClick={handleMessagingClick}>
+                <ListItemButton onClick={item.text === 'Messaging' ? handleMessagingClick : handleProductsClick}>
                   <ListItemIcon>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.text} />
-                  {messagingOpen ? <ExpandLess /> : <ExpandMore />}
+                  {(item.text === 'Messaging' ? messagingOpen : productsOpen) ? <ExpandLess /> : <ExpandMore />}
                 </ListItemButton>
-                <Collapse in={messagingOpen} timeout="auto" unmountOnExit>
+                <Collapse in={item.text === 'Messaging' ? messagingOpen : productsOpen} timeout="auto" unmountOnExit>
                   <List component="div" disablePadding>
                     {item.subItems.map((subItem) => (
                       <ListItem
                         button
                         key={subItem.text}
+                        disabled={false}
                         onClick={() => navigate(subItem.path)}
                         selected={location.pathname === subItem.path}
                         sx={{ pl: 4 }}
@@ -242,7 +257,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <ListItem
                 button
                 key={item.text}
-                onClick={() => navigate(item.path)}
+                onClick={() => item.path && navigate(item.path)}
                 selected={location.pathname === item.path}
               >
                 <ListItemIcon>{item.icon}</ListItemIcon>

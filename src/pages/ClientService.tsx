@@ -31,7 +31,7 @@ import {
     Save as SaveIcon, 
     Cancel as CancelIcon 
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { 
     fetchClients, 
@@ -42,333 +42,9 @@ import {
     Client, 
     ClientCreate, 
     ClientUpdate, 
-    TenantData
+    TenantData,
 } from '../lib/api';
-
-interface ClientDetailModalProps {
-    open: boolean;
-    onClose: () => void;
-    client: Client | null;
-    tenantData?: TenantData | null;
-    isLoadingTenantData: boolean;
-}
-
-const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ open, onClose, client, tenantData, isLoadingTenantData }) => {
-    const { token } = useAuth();
-    const queryClient = useQueryClient();
-    const [isEditing, setIsEditing] = useState(false);
-    const [editFormState, setEditFormState] = useState<ClientUpdate>({});
-    const [saveError, setSaveError] = useState<string | null>(null);
-    const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
-    const [openDeleteConfirm, setOpenDeleteConfirm] = useState(false);
-
-    useEffect(() => {
-        if (client && open) {
-            setIsEditing(false);
-            setSaveError(null);
-            setEditFormState({
-                first_name: client.first_name || '',
-                surname: client.surname || '',
-                email: client.email || '',
-                client_phone_number: client.client_phone_number || '',
-                address: client.address || '',
-                city: client.city || '',
-                state: client.state || '',
-                zip_code: client.zip_code || '',
-                country: client.country || 'Brasil',
-                custom_field: client.custom_field || ''
-            });
-        } else {
-             setIsEditing(false);
-             setSaveError(null);
-        }
-    }, [client, open]);
-
-    const updateMutation = useMutation<Client, Error, ClientUpdate>({
-        mutationFn: (updateData) => updateClient(client!.id, updateData, token),
-        onSuccess: (updatedClient) => {
-            queryClient.invalidateQueries({ queryKey: ['clients', token] });
-            setIsEditing(false);
-            setSaveError(null);
-            setShowSuccessSnackbar(true);
-        },
-        onError: (error) => {
-            setSaveError(error.message || 'Failed to update client.');
-        },
-    });
-
-    const deleteMutation = useMutation<void, Error>({ 
-        mutationFn: () => deleteClient(client!.id, token),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['clients', token] });
-            setShowSuccessSnackbar(true);
-            onClose();
-        },
-        onError: (error) => {
-            setSaveError(error.message || 'Failed to delete client.');
-            setOpenDeleteConfirm(false);
-        },
-    });
-
-    const handleEdit = () => {
-        setIsEditing(true);
-        setSaveError(null);
-    };
-
-    const handleCancelEdit = () => {
-        setIsEditing(false);
-        setSaveError(null);
-        if (client) {
-            setEditFormState({
-                first_name: client.first_name || '',
-                surname: client.surname || '',
-                email: client.email || '',
-                client_phone_number: client.client_phone_number || '',
-                address: client.address || '',
-                city: client.city || '',
-                state: client.state || '',
-                zip_code: client.zip_code || '',
-                country: client.country || 'Brasil',
-                custom_field: client.custom_field || ''
-            });
-        }
-    };
-
-    const handleSaveEdit = () => {
-        if (!editFormState.first_name || !editFormState.surname) {
-            setSaveError('First Name and Surname are required.');
-            return;
-        }
-        setSaveError(null);
-        updateMutation.mutate(editFormState);
-    };
-
-    const handleDelete = () => {
-        setOpenDeleteConfirm(true);
-    };
-
-    const handleConfirmDelete = () => {
-        deleteMutation.mutate();
-    };
-
-    const handleCloseDeleteConfirm = () => {
-        setOpenDeleteConfirm(false);
-    };
-
-    const handleInputChange = (field: keyof ClientUpdate) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        setEditFormState(prev => ({ ...prev, [field]: event.target.value }));
-    };
-    
-    const handleCloseSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => {
-        if (reason === 'clickaway') {
-        return;
-        }
-        setShowSuccessSnackbar(false);
-    };
-
-    if (!client) return null;
-
-    const customQuestionLabel = tenantData?.client_register_custom_question || 'Custom Field';
-
-    return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>
-                {isEditing ? 'Edit Client' : 'Client Details'}
-                <Box sx={{ float: 'right' }}>
-                     {!isEditing && (
-                         <IconButton onClick={handleEdit} color="primary">
-                             <EditIcon />
-                         </IconButton>
-                     )}
-                     <IconButton onClick={handleDelete} color="error" sx={{ ml: 1 }} disabled={isEditing || deleteMutation.isPending}>
-                         <DeleteIcon />
-                     </IconButton>
-                </Box>
-            </DialogTitle>
-            <DialogContent dividers>
-                {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                    <Grid item xs={12} sm={6}>
-                        <TextField
-                            label="First Name"
-                            fullWidth
-                            required
-                            value={isEditing ? editFormState.first_name : client.first_name || ''}
-                            onChange={handleInputChange('first_name')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                     <Grid item xs={12} sm={6}>
-                        <TextField
-                            label="Surname"
-                            fullWidth
-                            required
-                            value={isEditing ? editFormState.surname : client.surname || ''}
-                            onChange={handleInputChange('surname')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                             variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                     <Grid item xs={12} sm={6}>
-                        <TextField
-                            label="CPF/CNPJ (Client Identification)"
-                            fullWidth
-                            value={client.client_identification || 'N/A'}
-                            InputProps={{ readOnly: true }}
-                             variant={"standard"}
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <TextField
-                            label="Email"
-                            type="email"
-                            fullWidth
-                            value={isEditing ? editFormState.email : client.email || ''}
-                            onChange={handleInputChange('email')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                             variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                         <TextField
-                            label="Phone"
-                            fullWidth
-                            value={isEditing ? editFormState.client_phone_number : client.client_phone_number || ''}
-                            onChange={handleInputChange('client_phone_number')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                         <TextField
-                            label="Address"
-                            fullWidth
-                            value={isEditing ? editFormState.address : client.address || ''}
-                            onChange={handleInputChange('address')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                         <TextField
-                            label="City"
-                            fullWidth
-                            value={isEditing ? editFormState.city : client.city || ''}
-                            onChange={handleInputChange('city')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                     <Grid item xs={12} sm={2}>
-                         <TextField
-                            label="State"
-                            fullWidth
-                            value={isEditing ? editFormState.state : client.state || ''}
-                            onChange={handleInputChange('state')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                     <Grid item xs={12} sm={3}>
-                         <TextField
-                            label="Zip Code"
-                            fullWidth
-                            value={isEditing ? editFormState.zip_code : client.zip_code || ''}
-                            onChange={handleInputChange('zip_code')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                     <Grid item xs={12} sm={3}>
-                         <TextField
-                            label="Country"
-                            fullWidth
-                            value={isEditing ? editFormState.country : client.country || ''}
-                            onChange={handleInputChange('country')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                    <Grid item xs={12}>
-                         <Typography variant="subtitle2" display="block" sx={{ mb: 0.5, color: 'text.secondary' }}>
-                             {isLoadingTenantData
-                                 ? "Loading custom question..."
-                                 : (tenantData && tenantData.client_register_custom_question)
-                                     ? tenantData.client_register_custom_question
-                                     : "Custom Field"
-                             }
-                         </Typography>
-                         <TextField
-                            placeholder="Client's Response"
-                            fullWidth
-                            value={isEditing ? editFormState.custom_field : client.custom_field || ''}
-                            onChange={handleInputChange('custom_field')}
-                            disabled={!isEditing || updateMutation.isPending}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                            multiline
-                            rows={2}
-                        />
-                    </Grid>
-                </Grid>
-            </DialogContent>
-            <DialogActions>
-                 {isEditing ? (
-                    <>
-                        <Button onClick={handleCancelEdit} startIcon={<CancelIcon />} disabled={updateMutation.isPending}>
-                            Cancel
-                        </Button>
-                        <Button 
-                            onClick={handleSaveEdit} 
-                            variant="contained" 
-                            startIcon={<SaveIcon />} 
-                            disabled={updateMutation.isPending}
-                        >
-                            {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-                        </Button>
-                    </>
-                ) : (
-                    <Button onClick={onClose}>Close</Button>
-                )}
-            </DialogActions>
-
-             <Dialog
-                open={openDeleteConfirm}
-                onClose={handleCloseDeleteConfirm}
-            >
-                <DialogTitle>Confirm Deletion</DialogTitle>
-                <DialogContent>
-                <DialogContentText>
-                    Are you sure you want to delete the client "{client.first_name} {client.surname}"? This action cannot be undone.
-                </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                <Button onClick={handleCloseDeleteConfirm} disabled={deleteMutation.isPending}>Cancel</Button>
-                <Button onClick={handleConfirmDelete} color="error" disabled={deleteMutation.isPending}>
-                    {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-                </Button>
-                </DialogActions>
-            </Dialog>
-            
-            <Snackbar
-                open={showSuccessSnackbar}
-                autoHideDuration={4000}
-                onClose={handleCloseSnackbar}
-                message={deleteMutation.isSuccess ? "Client deleted successfully!" : "Client updated successfully!"}
-            />
-        </Dialog>
-    );
-};
+import ClientDetailModal from '../components/ClientDetailModal';
 
 const ClientService: React.FC = () => {
   const { token } = useAuth();
@@ -380,6 +56,7 @@ const ClientService: React.FC = () => {
   const [newClient, setNewClient] = useState<Partial<ClientCreate>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: clients = [], isLoading, error: fetchError } = useQuery<Client[], Error>({
@@ -404,12 +81,42 @@ const ClientService: React.FC = () => {
       setOpenDialog(false);
       setNewClient({});
       setSaveError(null);
+      setSnackbarMessage('Client created successfully!');
       setShowSuccessSnackbar(true);
       console.log('Client created:', data);
     },
     onError: (error) => {
       console.error("Failed to create client:", error);
       setSaveError(error.message || 'Failed to save client. Please check the details and try again.');
+    },
+  });
+
+  const updateClientMutation = useMutation<Client, Error, { clientId: string; updateData: ClientUpdate }>({
+    mutationFn: ({ clientId, updateData }) => updateClient(clientId, updateData, token),
+    onSuccess: (updatedClient) => {
+      queryClient.setQueryData(['clients', token], (oldData: Client[] | undefined) => 
+         oldData ? oldData.map(c => c.id === updatedClient.id ? updatedClient : c) : []
+      );
+      queryClient.invalidateQueries({ queryKey: ['clients', token] });
+      setSelectedClient(updatedClient);
+      setSnackbarMessage('Client updated successfully!');
+      setShowSuccessSnackbar(true);
+    },
+    onError: (error) => {
+      console.error("Failed to update client:", error);
+    },
+  });
+
+  const deleteClientMutation = useMutation<void, Error, string>({
+    mutationFn: (clientId) => deleteClient(clientId, token),
+    onSuccess: (_, clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['clients', token] });
+      setSnackbarMessage('Client deleted successfully!');
+      setShowSuccessSnackbar(true);
+      handleCloseDetailModal();
+    },
+    onError: (error) => {
+      console.error("Failed to delete client:", error);
     },
   });
 
@@ -465,6 +172,24 @@ const ClientService: React.FC = () => {
       return;
     }
     setShowSuccessSnackbar(false);
+  };
+
+  const handleUpdateClient = async (clientId: string, updateData: ClientUpdate): Promise<Client> => {
+    return new Promise((resolve, reject) => {
+      updateClientMutation.mutate({ clientId, updateData }, {
+        onSuccess: (data) => resolve(data),
+        onError: (error) => reject(error),
+      });
+    });
+  };
+
+  const handleDeleteClient = async (clientId: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      deleteClientMutation.mutate(clientId, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error),
+      });
+    });
   };
 
   // Filter clients based on search term
@@ -666,13 +391,19 @@ const ClientService: React.FC = () => {
         client={selectedClient} 
         tenantData={tenantData}
         isLoadingTenantData={isLoadingTenantData}
+        onUpdateClient={handleUpdateClient}
+        isUpdatingClient={updateClientMutation.isPending}
+        updateClientError={updateClientMutation.error?.message || null}
+        onDeleteClient={handleDeleteClient}
+        isDeletingClient={deleteClientMutation.isPending}
+        deleteClientError={deleteClientMutation.error?.message || null}
       />
 
       <Snackbar
         open={showSuccessSnackbar}
         autoHideDuration={4000}
         onClose={handleCloseSnackbar}
-        message="Client saved successfully!"
+        message={snackbarMessage}
       />
 
     </Box>
