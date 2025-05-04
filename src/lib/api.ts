@@ -351,3 +351,144 @@ export const deleteClient = async (clientId: string, token?: string | null): Pro
   // Remove trailing slash for individual resource DELETE
   await apiClient.delete(`/clients/${clientId}`, config);
 }; 
+
+// --- NEW: Product Catalog Types ---
+
+export interface Category {
+  id: string; // Assuming UUID based on PRODUCT_UUID format
+  name: string;
+  description?: string | null;
+  // Add other fields if available from the actual API response
+}
+
+export interface Product {
+  id: string; // Assuming UUID
+  name: string;
+  description?: string | null;
+  price: number; // Price is now guaranteed to be a number after transformation
+  stock: number; // Assuming numeric stock (parsed in transformation too)
+  category_id: string; // Foreign key to Category
+  image_url?: string | null; // Optional image
+  // Add other fields if available
+}
+
+// Response type for fetching multiple categories
+export type CategoriesResponse = Category[];
+
+// Response type for fetching multiple products (assuming pagination metadata)
+export interface PaginatedProductsResponse {
+  items: Product[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+// --- NEW: Actual type returned by the /products-api/products/ endpoint ---
+interface ActualProductApiResponse {
+    products: Product[];
+    has_more: boolean;
+}
+
+// --- NEW: Product Catalog API Functions ---
+
+/**
+ * Fetches available product categories for the tenant.
+ */
+export const fetchCategories = async (token: string | null): Promise<CategoriesResponse> => {
+  if (!token) throw new Error('Authentication token is required.');
+  const response = await apiClient.get<CategoriesResponse>('/products-api/categories/', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data;
+};
+
+/**
+ * Fetches products, optionally filtered by category and paginated.
+ */
+export const fetchProducts = async (
+  token: string | null,
+  page: number = 1,
+  pageSize: number = 10,
+  categoryId?: string | null
+): Promise<PaginatedProductsResponse> => {
+  if (!token) throw new Error('Authentication token is required.');
+
+  const params = new URLSearchParams({
+    page: page.toString(),
+    size: pageSize.toString(),
+  });
+
+  if (categoryId) {
+    params.append('category_id', categoryId);
+  }
+
+  console.log('Fetching products with params:', params.toString());
+
+  // Fetch expecting the ACTUAL API response structure
+  const response = await apiClient.get<ActualProductApiResponse>('/products-api/products/', {
+    headers: { Authorization: `Bearer ${token}` },
+    params: params,
+  });
+
+  console.log('Received response for products:', response);
+  console.log('Response data:', response.data); // <-- Log the raw response data
+
+  // --- TRANSFORM the actual response to the expected PaginatedProductsResponse ---
+  const actualData = response.data;
+  // Parse price to number during mapping
+  const items = actualData.products.map(product => ({
+    ...product,
+    price: typeof product.price === 'string' ? parseFloat(product.price) : product.price ?? 0, // Parse string price to number
+    // Ensure stock is also a number, just in case
+    stock: typeof product.stock === 'string' ? parseInt(product.stock, 10) : product.stock ?? 0,
+  }));
+  
+  // Estimate total and pages for pagination component
+  let estimatedTotal: number;
+  if (!actualData.has_more) {
+    // If has_more is false, we know the exact total count up to this page
+    estimatedTotal = (page - 1) * pageSize + items.length;
+  } else {
+    // If has_more is true, we know there's at least one more item
+    // Set a total that guarantees the pagination shows a next page
+    estimatedTotal = page * pageSize + 1; 
+  }
+
+  const estimatedPages = Math.ceil(estimatedTotal / pageSize);
+
+  const transformedData: PaginatedProductsResponse = {
+    items: items,
+    page: page,
+    size: pageSize, // Reflect the requested size
+    total: estimatedTotal, // Use estimated total
+    pages: estimatedPages, // Use estimated pages
+  };
+
+  // Ensure the response matches the expected PaginatedProductsResponse structure
+  // If the API directly returns Product[], adjust the function and type accordingly.
+  // Example adaptation if API returns only the list:
+  // const items = response.data; // Assuming response.data is Product[]
+  // return { items, total: items.length, page: 1, size: items.length, pages: 1 }; 
+  return transformedData; // Return the transformed data
+};
+
+
+// --- Cart Functionality (Placeholder - Implementation Deferred) ---
+// TODO: Clarify CLIENT_UUID handling for tenant UI before implementing cart features.
+/*
+export interface CartItem {
+    // ... fields ...
+}
+export interface Cart {
+    // ... fields ...
+}
+export const fetchCart = async (token: string | null, clientId: string): Promise<Cart> => { ... };
+export const addToCart = async (token: string | null, clientId: string, productId: string, quantity: number): Promise<any> => { ... };
+export const removeFromCart = async (token: string | null, clientId: string, productId: string): Promise<any> => { ... };
+export const clearCart = async (token: string | null, clientId: string): Promise<any> => { ... };
+export const checkoutCart = async (token: string | null, clientId: string): Promise<any> => { ... };
+*/
+
+// --- Existing API Functions Continue Below ---
+// ... existing code ... 

@@ -16,6 +16,7 @@ import Profile from './pages/Profile';
 import TenantInfo from './pages/TenantInfo';
 import Register from './pages/Register';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import ProductsCatalogPage from './pages/ProductsCatalogPage';
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,11 @@ const App: React.FC = () => {
               <Route path="/tenant-info" element={
                 <ProtectedRoute>
                   <TenantInfo />
+                </ProtectedRoute>
+              } />
+              <Route path="/products" element={
+                <ProtectedRoute>
+                  <ProductsCatalogPage />
                 </ProtectedRoute>
               } />
             </Routes>

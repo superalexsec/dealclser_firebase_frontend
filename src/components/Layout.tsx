@@ -30,6 +30,7 @@ import {
   ExpandLess,
   ExpandMore,
   Logout as LogoutIcon,
+  Storefront as StorefrontIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -156,6 +157,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Client Service', icon: <PeopleIcon />, path: '/client-service' },
     { text: 'Calendar', icon: <CalendarTodayIcon />, path: '/calendar' },
     { text: 'PDF Service', icon: <PDFIcon />, path: '/pdf-service' },
+    { text: 'Product Catalog', icon: <StorefrontIcon />, path: '/products' },
     { text: 'Tenant Info', icon: <BusinessIcon />, path: '/tenant-info' },
     { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
