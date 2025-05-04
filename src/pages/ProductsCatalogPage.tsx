@@ -16,10 +16,13 @@ import {
   Pagination,
   Chip,
   Divider,
+  TextField,
+  CardActionArea,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchCategories, fetchProducts, Category, Product, PaginatedProductsResponse } from '../lib/api';
+import ProductDetailModal from '../components/ProductDetailModal';
 
 // Helper to provide placeholder data structure during fetching
 const placeholderProductsData: PaginatedProductsResponse = {
@@ -35,6 +38,9 @@ const ProductsCatalogPage: React.FC = () => {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 9; // Adjust as needed
+  const [searchTerm, setSearchTerm] = useState(''); // State for search term
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null); // State for modal
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // State for modal visibility
 
   // Fetch Categories
   const {
@@ -71,6 +77,21 @@ const ProductsCatalogPage: React.FC = () => {
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
     setCurrentPage(value);
   };
+
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedProduct(null); // Clear selected product on close
+  };
+
+  // Filter products based on search term (client-side)
+  const filteredProducts = (productsData?.items ?? []).filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Use optional chaining and nullish coalescing for safer access
   const products = productsData?.items ?? [];
@@ -137,6 +158,19 @@ const ProductsCatalogPage: React.FC = () => {
                 {/* Show loading indicator only when fetching in background (not initial load) */}
                 {(isFetchingProducts && !isInitiallyLoading) && <CircularProgress size={20} />} 
             </Box>
+            
+            {/* --- Add Search Bar --- */}
+            <TextField
+              fullWidth
+              variant="outlined"
+              label="Search Products by Name"
+              placeholder="Type to search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ mb: 3 }}
+              disabled={isInitiallyLoading} // Disable while initially loading
+            />
+
           {/* Show main loading indicator only on initial load */}
           {isInitiallyLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -151,31 +185,44 @@ const ProductsCatalogPage: React.FC = () => {
           ) : (
             <Grid container spacing={2}>
               {/* Explicitly type 'product' here */}
-              {products.map((product: Product) => (
-                <Grid item xs={12} sm={6} md={4} key={product.id}>
-                  <Card sx={{ height: '100%' }}>
-                    <CardMedia
-                      component="img"
-                      height="140"
-                      image={product.image_url || 'https://via.placeholder.com/150?text=No+Image'} // Placeholder
-                      alt={product.name}
-                      sx={{ objectFit: 'contain', pt: 1}} // Use contain to avoid cropping
-                    />
-                    <CardContent>
-                      <Typography gutterBottom variant="h6" component="div" noWrap title={product.name}>
-                        {product.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ minHeight: '40px', mb: 1 }}>
-                        {product.description || 'No description available.'}
-                      </Typography>
-                      <Chip label={`Price: ${product.price.toFixed(2)}`} size="small" color="success" sx={{ mr: 0.5 }}/>
-                      <Chip label={`Stock: ${product.stock}`} size="small" color={product.stock > 0 ? "info" : "warning"} />
-                      {/* TODO: Add "Add to Cart" button here when cart functionality is ready */}
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
+              {filteredProducts.map((product: Product) => { // <-- Use filteredProducts
+                // Check if product exists (might be null/undefined after filtering)
+                if (!product) return null;
+                return (
+                  <Grid item xs={12} sm={6} md={4} key={product.id}>
+                    <CardActionArea onClick={() => handleProductClick(product)} sx={{ height: '100%' }}>
+                      <Card sx={{ height: '100%' }}>
+                        <CardMedia
+                          component="img"
+                          height="140"
+                          image={product.image_url || 'https://via.placeholder.com/150?text=No+Image'} // Placeholder
+                          alt={product.name}
+                          sx={{ objectFit: 'contain', pt: 1}} // Use contain to avoid cropping
+                        />
+                        <CardContent>
+                          <Typography gutterBottom variant="h6" component="div" noWrap title={product.name}>
+                            {product.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ minHeight: '40px', mb: 1 }}>
+                            {product.description || 'No description available.'}
+                          </Typography>
+                          <Chip label={`Price: ${product.price.toFixed(2)}`} size="small" color="success" sx={{ mr: 0.5 }}/>
+                          <Chip label={`Stock: ${product.stock}`} size="small" color={product.stock > 0 ? "info" : "warning"} />
+                          {/* TODO: Add "Add to Cart" button here when cart functionality is ready */}
+                        </CardContent>
+                      </Card>
+                    </CardActionArea>
+                  </Grid>
+                );
+              })}
             </Grid>
+          )}
+
+          {/* Show message if search yields no results but there were products originally */}
+          {!isInitiallyLoading && !productsError && filteredProducts.length === 0 && (productsData?.items ?? []).length > 0 && (
+            <Typography sx={{ textAlign: 'center', mt: 4 }}>
+                No products match your search "{searchTerm}".
+            </Typography>
           )}
 
           {/* Pagination */} 
@@ -192,6 +239,14 @@ const ProductsCatalogPage: React.FC = () => {
           )}
         </Grid>
       </Grid>
+      
+      {/* Add Modal Component */}
+      <ProductDetailModal
+        open={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
+        product={selectedProduct}
+      />
+
     </Box>
   );
 };
