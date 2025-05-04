@@ -1,443 +1,384 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Typography,
-  Grid,
-  CircularProgress,
-  Alert,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  Paper,
-  Card,
-  CardContent,
-  CardMedia,
-  Pagination,
-  Chip,
-  Divider,
-  TextField,
-  CardActionArea,
-  Button,
-  Snackbar,
-  Stack,
+    Box,
+    Typography,
+    Grid,
+    Card,
+    CardContent,
+    Button,
+    CircularProgress,
+    Alert,
+    Stack,
+    CardActionArea,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Snackbar,
 } from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  fetchCategories, 
-  fetchProducts, 
-  createCategory,
-  createProduct,
-  updateProduct,
-  Category, 
-  Product, 
-  PaginatedProductsResponse, 
-  CategoryCreate,
-  ProductCreate,
-  ProductUpdate
+import {
+    fetchCategories,
+    fetchProducts,
+    createCategory,
+    createProduct,
+    updateProduct,
+    ProductListResponse,
+    Category,
+    Product,
+    CategoryCreate,
+    ProductCreate,
+    ProductUpdate
 } from '../lib/api';
-import ProductDetailModal from '../components/ProductDetailModal';
 import AddCategoryDialog from '../components/AddCategoryDialog';
 import AddProductDialog from '../components/AddProductDialog';
-
-// Helper to provide placeholder data structure during fetching
-const placeholderProductsData: PaginatedProductsResponse = {
-  items: [],
-  total: 0,
-  page: 1,
-  size: 0,
-  pages: 1,
-};
+import ProductDetailModal from '../components/ProductDetailModal';
 
 const ProductsCatalogPage: React.FC = () => {
-  const { token } = useAuth();
-  const queryClient = useQueryClient();
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const productsPerPage = 9; // Adjust as needed
-  const [searchTerm, setSearchTerm] = useState(''); // State for search term
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null); // State for modal
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); // State for modal visibility
-  const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false); // State for Add Category dialog
-  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
-  const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false); // State for Add Product dialog
-  const [snackbarMessage, setSnackbarMessage] = useState('');
+    const { token } = useAuth();
+    const queryClient = useQueryClient();
+    const [allProducts, setAllProducts] = useState<Product[]>([]);
+    const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
+    const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
 
-  // Fetch Categories
-  const {
-    data: categories = [],
-    isLoading: isLoadingCategories,
-    error: categoriesError,
-  } = useQuery<Category[], Error>({
-    queryKey: ['categories', token],
-    queryFn: () => fetchCategories(token),
-    enabled: !!token,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+    // Fetch Categories
+    const { data: categories = [], isLoading: isLoadingCategories, error: categoriesError } = useQuery<Category[], Error>({
+        queryKey: ['categories', token],
+        queryFn: () => fetchCategories(token),
+        enabled: !!token,
+        staleTime: 5 * 60 * 1000, // Cache categories for 5 minutes
+    });
 
-  // Fetch Products (depends on selected category and current page)
-  const {
-    data: productsData,
-    isLoading: isLoadingProducts,
-    error: productsError,
-    isFetching: isFetchingProducts,
-  } = useQuery<PaginatedProductsResponse, Error>({
-    queryKey: ['products', selectedCategoryId, currentPage, productsPerPage, token],
-    queryFn: () => fetchProducts(token, currentPage, productsPerPage, selectedCategoryId),
-    enabled: !!token,
-    placeholderData: (previousData) => previousData ?? placeholderProductsData, // Use placeholderData (keepPreviousData replacement)
-    staleTime: 1 * 60 * 1000, // 1 minute
-  });
+    // Fetch Products - Modified for infinite loading
+    const { 
+        data: currentProductPage, 
+        isLoading: isLoadingProducts, // This is true for the initial load of a page
+        error: productsError, 
+    } = useQuery<ProductListResponse, Error>({ 
+        queryKey: ['products', token, currentPage, selectedCategory], 
+        queryFn: () => fetchProducts(token, currentPage, selectedCategory), 
+        enabled: !!token, 
+        refetchOnWindowFocus: false,
+        // keepPreviousData might be useful if you want to show old data while loading the *next* page
+        // keepPreviousData: true, 
+    });
 
-  // --- NEW: Mutation for Creating Category ---
-  const { 
-      mutate: addCategoryMutate, 
-      isPending: isAddingCategory, 
-      error: addCategoryError 
-  } = useMutation<Category, Error, CategoryCreate>({
-      mutationFn: (categoryData) => createCategory(categoryData, token),
-      onSuccess: (newCategory) => {
-          queryClient.invalidateQueries({ queryKey: ['categories', token] });
-          setIsAddCategoryDialogOpen(false);
-          setSnackbarMessage(`Category "${newCategory.name}" created successfully!`);
-          setShowSuccessSnackbar(true);
-      },
-      onError: (error) => {
-          // Error is handled within the dialog via props
-          console.error("Error creating category:", error);
-      },
-  });
+    // Effect to append new products to state when a new page loads
+    useEffect(() => {
+        if (currentProductPage?.products) {
+            setAllProducts(prevProducts => {
+                // Simple append if it's a new page
+                if (currentPage > 1) {
+                   const newProducts = currentProductPage.products.filter(
+                       newProd => !prevProducts.some(existingProd => existingProd.id === newProd.id)
+                   );
+                   return [...prevProducts, ...newProducts];
+                } else {
+                    // If it's the first page (currentPage === 1), replace the data
+                    return currentProductPage.products;
+                }
+            });
+        }
+        // Reset fetching state once data arrives for the current page
+        setIsFetchingNextPage(false);
+    }, [currentProductPage, currentPage]); // Depend on the fetched data for the current page
 
-  // --- NEW: Mutation for Creating Product ---
-  const { 
-      mutate: addProductMutate, 
-      isPending: isAddingProduct, 
-      error: addProductError 
-  } = useMutation<Product, Error, ProductCreate>({
-      mutationFn: (productData) => createProduct(productData, token),
-      onSuccess: (newProduct) => {
-          // Invalidate products for the category it was added to, AND the 'All Products' view
-          queryClient.invalidateQueries({ queryKey: ['products', newProduct.category_id, 1, productsPerPage, token] });
-          queryClient.invalidateQueries({ queryKey: ['products', null, 1, productsPerPage, token] });
-          // Optionally, could invalidate all pages for that category if desired:
-          // queryClient.invalidateQueries({ queryKey: ['products', newProduct.category_id] });
-          // queryClient.invalidateQueries({ queryKey: ['products', null] });
-          setIsAddProductDialogOpen(false);
-          setSnackbarMessage(`Product "${newProduct.name}" created successfully!`);
-          setShowSuccessSnackbar(true);
-      },
-      onError: (error) => {
-          // Error is handled within the dialog via props
-          console.error("Error creating product:", error);
-      },
-  });
+    // Effect to reset products when category changes
+    useEffect(() => {
+        setAllProducts([]); // Clear existing products
+        setCurrentPage(1); // Reset to page 1
+        // This effect doesn't need to trigger a refetch itself,
+        // changing currentPage back to 1 will trigger the useQuery hook if needed.
+    }, [selectedCategory]); // Only depend on category
 
-  // --- NEW: Mutation for Updating Product ---
-  const { 
-      mutate: updateProductMutate, 
-      isPending: isUpdatingProduct, 
-      error: updateProductError 
-  } = useMutation<Product, Error, { productId: string; productData: ProductUpdate }>({ // Adjust input type
-      mutationFn: ({ productId, productData }) => updateProduct(productId, productData, token),
-      onSuccess: (updatedProduct) => {
-          // Invalidate products for the specific category AND the 'All Products' view
-          // We need to invalidate based on the potentially *updated* category ID
-          queryClient.invalidateQueries({ queryKey: ['products', updatedProduct.category_id] });
-          if (updatedProduct.category_id !== selectedCategoryId && selectedCategoryId !== null) {
-              // Also invalidate the previously selected category if it changed
-              queryClient.invalidateQueries({ queryKey: ['products', selectedCategoryId] });
-          }
-          queryClient.invalidateQueries({ queryKey: ['products', null] });
+    // --- Load More Logic --- 
+    const hasMore = currentProductPage?.has_more ?? false;
 
-          // Update the selectedProduct state if the modal is still open (or was just closed by save)
-          setSelectedProduct(updatedProduct); 
-          
-          setSnackbarMessage(`Product "${updatedProduct.name}" updated successfully!`);
-          setShowSuccessSnackbar(true);
-          // Note: isEditing state is handled within the modal on successful save
-      },
-      onError: (error) => {
-          // Error is handled within the modal via props
-          console.error("Error updating product:", error);
-      },
-  });
+    const loadMoreProducts = () => {
+        if (hasMore && !isFetchingNextPage) {
+            setIsFetchingNextPage(true);
+            setCurrentPage(prevPage => prevPage + 1); // Increment page number to trigger query
+        }
+    }; 
 
-  const handleCategoryClick = (categoryId: string | null) => {
-    console.log('Category clicked:', categoryId);
-    setSelectedCategoryId(categoryId);
-    setCurrentPage(1); // Reset to first page when category changes
-  };
+    // --- Mutations --- 
+    const { mutate: createCategoryMutate, isPending: isAddingCategory, error: addCategoryError } = useMutation<Category, Error, CategoryCreate>({
+        mutationFn: (categoryData) => createCategory(categoryData, token),
+        onSuccess: (newCategory) => {
+            queryClient.invalidateQueries({ queryKey: ['categories', token] });
+            setIsAddCategoryDialogOpen(false);
+            setSnackbarMessage(`Category "${newCategory.name}" created successfully!`);
+            setShowSuccessSnackbar(true);
+        },
+        onError: (error) => {
+            console.error("Error creating category:", error);
+            // Error state is passed to dialog
+        },
+    });
 
-  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
-    setCurrentPage(value);
-  };
+    const { mutate: createProductMutate, isPending: isAddingProduct, error: addProductError } = useMutation<Product, Error, ProductCreate>({
+        mutationFn: (productData) => createProduct(productData, token),
+        onSuccess: (newProduct) => {
+            // Invalidate the first page for the category and 'all'
+            queryClient.invalidateQueries({ queryKey: ['products', token, 1, newProduct.category_id] });
+            queryClient.invalidateQueries({ queryKey: ['products', token, 1, null] });
+            // Reset local state to reflect the new product potentially appearing on page 1
+            setAllProducts([]);
+            setCurrentPage(1);
+            setIsAddProductDialogOpen(false);
+            setSnackbarMessage(`Product "${newProduct.name}" created successfully!`);
+            setShowSuccessSnackbar(true);
+        },
+        onError: (error) => {
+            console.error("Error creating product:", error);
+             // Error state is passed to dialog
+        },
+    });
 
-  const handleProductClick = (product: Product) => {
-    setSelectedProduct(product);
-    setIsDetailModalOpen(true);
-  };
+    // Mutation for Updating Product
+    const { 
+        mutate: updateProductMutate, 
+        isPending: isUpdatingProduct, 
+        error: updateProductError 
+    } = useMutation<Product, Error, { productId: string; productData: ProductUpdate }>({
+        mutationFn: ({ productId, productData }) => updateProduct(productId, productData, token),
+        onSuccess: (updatedProduct) => {
+             // Invalidate queries to refetch potentially changed product lists
+             queryClient.invalidateQueries({ queryKey: ['products', token] }); // Invalidate all product pages
+             setSnackbarMessage(`Product "${updatedProduct.name}" updated successfully!`);
+             setShowSuccessSnackbar(true);
+             setIsDetailModalOpen(false); // Close modal on successful update
+             setSelectedProduct(null); // Clear selection
+        },
+        onError: (error) => {
+             console.error("Error updating product:", error);
+              // Error state is passed to modal
+        },
+    });
 
-  const handleCloseDetailModal = () => {
-    setIsDetailModalOpen(false);
-    setSelectedProduct(null); // Clear selected product on close
-  };
+    // Wrapper function for AddCategoryDialog onSave prop
+    const handleSaveCategory = async (categoryData: CategoryCreate): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            createCategoryMutate(categoryData, {
+              onSuccess: () => resolve(), // Resolve promise on success
+              onError: (error) => reject(error), // Reject promise on error
+            });
+        });
+    };
 
-  const handleOpenAddCategoryDialog = () => {
-      setIsAddCategoryDialogOpen(true);
-  };
+    // Wrapper function for AddProductDialog onSave prop
+    const handleSaveProduct = async (productData: ProductCreate): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            createProductMutate(productData, {
+                onSuccess: () => resolve(),
+                onError: (error) => reject(error),
+            });
+        });
+    };
 
-  const handleCloseAddCategoryDialog = () => {
-      setIsAddCategoryDialogOpen(false);
-  };
+    // --- Handlers --- 
+    const handleCategoryChange = (event: SelectChangeEvent<string>) => {
+        const value = event.target.value;
+        setSelectedCategory(value === 'all' ? null : value);
+        // Resetting state happens in useEffect based on selectedCategory change
+    };
 
-  const handleSaveCategory = async (categoryData: CategoryCreate) => {
-      addCategoryMutate(categoryData);
-  };
+    const handleOpenDetailModal = (product: Product) => {
+        setSelectedProduct(product);
+        setIsDetailModalOpen(true);
+    };
 
-  const handleOpenAddProductDialog = () => {
-      setIsAddProductDialogOpen(true);
-  };
+    const handleCloseDetailModal = () => {
+        setIsDetailModalOpen(false);
+        setSelectedProduct(null);
+    };
 
-  const handleCloseAddProductDialog = () => {
-      setIsAddProductDialogOpen(false);
-  };
+    const handleOpenAddCategoryDialog = () => {
+        setIsAddCategoryDialogOpen(true);
+    };
 
-  const handleSaveProduct = async (productData: ProductCreate) => {
-      addProductMutate(productData);
-  };
+    const handleCloseAddCategoryDialog = () => {
+        setIsAddCategoryDialogOpen(false);
+    };
 
-  // Handler to be passed to the modal
-  const handleSaveProductUpdate = async (productId: string, productData: ProductUpdate): Promise<void> => {
-      // Wrap the mutate call in a promise to match the modal's expected onSave prop type
-      return new Promise((resolve, reject) => {
-          updateProductMutate({ productId, productData }, {
+     const handleOpenAddProductDialog = () => {
+        setIsAddProductDialogOpen(true);
+    };
+
+    const handleCloseAddProductDialog = () => {
+        setIsAddProductDialogOpen(false);
+    };
+    
+    const handleCloseSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => {
+        if (reason === 'clickaway') {
+          return;
+        }
+        setShowSuccessSnackbar(false);
+    };
+
+    // Handler to be passed to the modal for saving updates
+    const handleSaveProductUpdate = async (productId: string, productData: ProductUpdate): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            updateProductMutate({ productId, productData }, {
               onSuccess: () => resolve(),
-              onError: (error) => reject(error) 
-          });
-      });
-  };
+              onError: (error) => reject(error), // Let the mutation's onError handle UI feedback
+            });
+        });
+    };
 
-  const handleCloseSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setShowSuccessSnackbar(false);
-  };
+    // Determine if showing initial loading spinner
+    const showInitialLoading = isLoadingProducts && currentPage === 1 && allProducts.length === 0;
 
-  // Filter products based on search term (client-side)
-  const filteredProducts = (productsData?.items ?? []).filter(product => 
-    product.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    return (
+        <Box sx={{ p: 3 }}>
+            <Typography variant="h4" gutterBottom>Product Catalog</Typography>
 
-  // Use optional chaining and nullish coalescing for safer access
-  const products = productsData?.items ?? [];
-  const totalPages = productsData?.pages ?? 1;
-  // Determine overall loading state (for initial render/major changes)
-  const isInitiallyLoading = isLoadingCategories || isLoadingProducts;
-  const hasError = categoriesError || productsError;
-
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Product Catalog
-      </Typography>
-
-      {/* --- Add Product Button --- */}
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-         <Button 
-            variant="contained" 
-            onClick={handleOpenAddProductDialog}
-            disabled={isLoadingCategories || categories.length === 0} // Disable if no categories exist
-         >
-             Add Product
-         </Button>
-      </Box>
-
-      {hasError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load catalog data: { (categoriesError || productsError)?.message }
-        </Alert>
-      )}
-
-      <Grid container spacing={3}>
-        {/* Categories Sidebar */}
-        <Grid item xs={12} md={3}>
-          <Typography variant="h6" gutterBottom>Categories</Typography>
-          <Paper elevation={1} sx={{ maxHeight: 'calc(70vh - 50px)', overflow: 'auto' }}>
-            {isLoadingCategories ? (
-              <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={24} /></Box>
-            ) : categoriesError ? (
-                <Alert severity="warning" sx={{m:1}}>Could not load categories.</Alert>
-            ) : (
-              <List dense component="nav">
-                <ListItemButton
-                  selected={selectedCategoryId === null}
-                  onClick={() => handleCategoryClick(null)}
+            {/* Controls: Category Filter & Add Buttons */}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} alignItems="center">
+                <FormControl sx={{ minWidth: 200 }}>
+                    <InputLabel id="category-select-label">Category</InputLabel>
+                    <Select
+                        labelId="category-select-label"
+                        id="category-select"
+                        value={selectedCategory || 'all'}
+                        label="Category"
+                        onChange={handleCategoryChange}
+                        disabled={isLoadingCategories} // Disable while loading categories
+                    >
+                        <MenuItem value="all">All Products</MenuItem>
+                        {categoriesError && <MenuItem disabled>Error loading categories</MenuItem>}
+                        {categories.map((category) => (
+                        <MenuItem key={category.id} value={category.id}>
+                            {category.name}
+                        </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                <Button 
+                    variant="outlined" 
+                    onClick={handleOpenAddCategoryDialog} 
+                    disabled={isAddingCategory} // Disable if already adding
                 >
-                  <ListItemText primary="All Products" />
-                </ListItemButton>
-                <Divider />
-                {categories.map((category) => (
-                  <ListItemButton
-                    key={category.id}
-                    selected={selectedCategoryId === category.id}
-                    onClick={() => handleCategoryClick(category.id)}
-                  >
-                    <ListItemText primary={category.name} />
-                  </ListItemButton>
-                ))}
-                {categories.length === 0 && (
-                    <ListItem>
-                        <ListItemText secondary="No categories found." />
-                    </ListItem>
-                )}
-              </List>
-            )}
-          </Paper>
-          {/* Add Category Button */} 
-          <Button 
-              variant="contained" 
-              fullWidth 
-              sx={{ mt: 1 }} 
-              onClick={handleOpenAddCategoryDialog}
-              disabled={isLoadingCategories || isAddingCategory}
-          >
-              Add Category
-          </Button>
-        </Grid>
+                    Add Category
+                </Button>
+                <Button 
+                    variant="contained" 
+                    onClick={handleOpenAddProductDialog} 
+                    disabled={isLoadingCategories || categories.length === 0 || isAddingProduct}
+                >
+                    Add Product
+                </Button>
+            </Stack>
 
-        {/* Products Grid */}
-        <Grid item xs={12} md={9}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">
-                    {selectedCategoryId ? categories.find(c => c.id === selectedCategoryId)?.name : 'All Products'}
-                </Typography>
-                {/* Show loading indicator only when fetching in background (not initial load) */}
-                {(isFetchingProducts && !isInitiallyLoading) && <CircularProgress size={20} />} 
-            </Box>
+            {/* Loading and Error States */} 
+            {showInitialLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}><CircularProgress /></Box>
+            )}
+            {/* Show product fetch error only if not initially loading */}
+            {productsError && !showInitialLoading && (
+                <Alert severity="error" sx={{ mb: 3 }}>Failed to load products: {productsError.message}</Alert>
+            )}
+             {/* Show category fetch error if relevant */}
+            {categoriesError && (
+                <Alert severity="warning" sx={{ mb: 3 }}>Failed to load categories: {categoriesError.message}</Alert>
+            )}
+
+            {/* Product Grid */}
+            {/* Render grid only if not initially loading and no product error */}
+            {!showInitialLoading && !productsError && (
+                <Grid container spacing={3}>
+                    {allProducts.map((product) => (
+                        <Grid item xs={12} sm={6} md={4} key={product.id}>
+                            <CardActionArea onClick={() => handleOpenDetailModal(product)} sx={{ height: '100%' }}>
+                                <Card sx={{ height: '100%' }}>
+                                    <CardContent>
+                                        <Typography gutterBottom variant="h6" component="div" noWrap title={product.name}>
+                                            {product.name}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }} noWrap>
+                                            {product.description || 'No description.'}
+                                        </Typography>
+                                        <Typography variant="h6" color="primary">
+                                            {/* Display price string - Consider formatting */}
+                                            Price: {product.price}
+                                        </Typography>
+                                        <Typography variant="caption" display="block" color={!product.is_active ? "error" : "success"}>
+                                            Status: {!product.is_active ? 'Disabled' : 'Active'}
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            </CardActionArea>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
             
-            {/* --- Add Search Bar --- */}
-            <TextField
-              fullWidth
-              variant="outlined"
-              label="Search Products by Name"
-              placeholder="Type to search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ mb: 3 }}
-              disabled={isInitiallyLoading} // Disable while initially loading
+            {/* No products message */}
+            {!isLoadingProducts && !isFetchingNextPage && allProducts.length === 0 && currentPage === 1 && !productsError && (
+                <Typography sx={{ textAlign: 'center', mt: 4 }}>No products found matching your criteria.</Typography>
+            )}
+
+            {/* Load More Button */} 
+            {hasMore && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                    <Button 
+                        variant="contained" 
+                        onClick={loadMoreProducts} 
+                        disabled={isFetchingNextPage || isLoadingProducts} // Disable if loading initial page or next page
+                    >
+                        {isFetchingNextPage ? <CircularProgress size={24} color="inherit" /> : 'Load More Products'}
+                    </Button>
+                </Box>
+            )}
+
+            {/* Dialogs and Modals */}
+            <AddCategoryDialog
+                open={isAddCategoryDialogOpen}
+                onClose={handleCloseAddCategoryDialog}
+                onSave={handleSaveCategory}
+                isSaving={isAddingCategory}
+                saveError={addCategoryError?.message || null}
             />
 
-          {/* Show main loading indicator only on initial load */}
-          {isInitiallyLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-              <CircularProgress />
-            </Box>
-          ) : productsError ? (
-            <Alert severity="warning">Could not load products for this category.</Alert>
-          ) : products.length === 0 ? (
-            <Typography sx={{ textAlign: 'center', mt: 4 }}>
-              No products found in this category.
-            </Typography>
-          ) : (
-            <Grid container spacing={2}>
-              {/* Explicitly type 'product' here */}
-              {filteredProducts.map((product: Product) => { // <-- Use filteredProducts
-                // Check if product exists (might be null/undefined after filtering)
-                if (!product) return null;
-                return (
-                  <Grid item xs={12} sm={6} md={4} key={product.id}>
-                    <CardActionArea onClick={() => handleProductClick(product)} sx={{ height: '100%' }}>
-                      <Card sx={{ height: '100%' }}>
-                        <CardMedia
-                          component="img"
-                          height="140"
-                          image={product.image_url || 'https://via.placeholder.com/150?text=No+Image'} // Placeholder
-                          alt={product.name}
-                          sx={{ objectFit: 'contain', pt: 1}} // Use contain to avoid cropping
-                        />
-                        <CardContent>
-                          <Typography gutterBottom variant="h6" component="div" noWrap title={product.name}>
-                            {product.name}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ minHeight: '40px', mb: 1 }}>
-                            {product.description || 'No description available.'}
-                          </Typography>
-                          <Chip label={`Price: ${product.price.toFixed(2)}`} size="small" color="success" sx={{ mr: 0.5 }}/>
-                          <Chip label={`Stock: ${product.stock}`} size="small" color={product.stock > 0 ? "info" : "warning"} />
-                          {/* TODO: Add "Add to Cart" button here when cart functionality is ready */}
-                        </CardContent>
-                      </Card>
-                    </CardActionArea>
-                  </Grid>
-                );
-              })}
-            </Grid>
-          )}
+            <AddProductDialog
+                open={isAddProductDialogOpen}
+                onClose={handleCloseAddProductDialog}
+                onSave={handleSaveProduct}
+                isSaving={isAddingProduct}
+                saveError={addProductError?.message || null}
+                categories={categories} 
+            />
 
-          {/* Show message if search yields no results but there were products originally */}
-          {!isInitiallyLoading && !productsError && filteredProducts.length === 0 && (productsData?.items ?? []).length > 0 && (
-            <Typography sx={{ textAlign: 'center', mt: 4 }}>
-                No products match your search "{searchTerm}".
-            </Typography>
-          )}
+            {selectedProduct && (
+                 <ProductDetailModal
+                    open={isDetailModalOpen}
+                    onClose={handleCloseDetailModal}
+                    product={selectedProduct}
+                    categories={categories} // Pass categories for dropdown
+                    onSave={handleSaveProductUpdate} // Pass the handler
+                    isSaving={isUpdatingProduct} // Pass loading state
+                    saveError={updateProductError?.message || null} // Pass error state
+                 />
+             )}
 
-          {/* Pagination */} 
-          {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <Pagination
-                count={totalPages}
-                page={currentPage}
-                onChange={handlePageChange}
-                color="primary"
-                disabled={isFetchingProducts} // Disable pagination while any fetch is happening
-              />
-            </Box>
-          )}
-        </Grid>
-      </Grid>
-      
-      {/* Add Modal Component */}
-      <ProductDetailModal
-        open={isDetailModalOpen}
-        onClose={handleCloseDetailModal}
-        product={selectedProduct}
-        categories={categories}
-        onSave={handleSaveProductUpdate}
-        isSaving={isUpdatingProduct}
-        saveError={updateProductError?.message || null}
-      />
+             <Snackbar
+                 open={showSuccessSnackbar}
+                 autoHideDuration={4000}
+                 onClose={handleCloseSnackbar}
+                 message={snackbarMessage}
+             />
 
-      {/* Add Category Dialog Component */} 
-      <AddCategoryDialog
-        open={isAddCategoryDialogOpen}
-        onClose={handleCloseAddCategoryDialog}
-        onSave={handleSaveCategory}
-        isSaving={isAddingCategory}
-        saveError={addCategoryError?.message || null}
-      />
-
-      {/* Add Product Dialog Component */} 
-      <AddProductDialog
-        open={isAddProductDialogOpen}
-        onClose={handleCloseAddProductDialog}
-        onSave={handleSaveProduct}
-        isSaving={isAddingProduct}
-        saveError={addProductError?.message || null}
-        categories={categories} // Pass fetched categories
-      />
-      
-      {/* Success Snackbar */}
-       <Snackbar
-         open={showSuccessSnackbar}
-         autoHideDuration={4000}
-         onClose={handleCloseSnackbar}
-         message={snackbarMessage}
-       />
-
-    </Box>
-  );
+        </Box>
+    );
 };
 
 export default ProductsCatalogPage; 

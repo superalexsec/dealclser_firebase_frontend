@@ -13,30 +13,39 @@ import {
     Button,
     Paper,
     Divider,
+    Grid,
 } from '@mui/material';
 import {
     ShoppingCart as ShoppingCartIcon,
     RemoveShoppingCart as RemoveShoppingCartIcon,
     DeleteForever as DeleteForeverIcon,
+    AddShoppingCart as AddShoppingCartIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import {
     fetchClients,
+    fetchProducts,
     fetchCart,
     removeFromCart,
     clearCart,
+    addToCart,
     Client,
-    Cart,
+    Product,
     RemoveFromCartPayload,
     CartActionPayload,
+    AddToCartPayload,
+    CartViewResponse,
+    CartItemView,
+    CartActionResponse,
 } from '../lib/api'; // Adjust path if necessary
 
 const CartPage: React.FC = () => {
     const { token } = useAuth();
     const queryClient = useQueryClient();
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [quantityToAdd, setQuantityToAdd] = useState<number>(1);
     const [snackbarMessage, setSnackbarMessage] = useState(''); // For success/error messages
     const [showSnackbar, setShowSnackbar] = useState(false);
 
@@ -52,19 +61,33 @@ const CartPage: React.FC = () => {
         staleTime: 5 * 60 * 1000,
     });
 
+    // --- Fetch Products for Autocomplete --- 
+    const {
+        data: productsData, 
+        isLoading: isLoadingProducts,
+        error: productsError,
+    } = useQuery({ // Removed type args as PaginatedProductsResponse is inferred
+        // Fetch *all* products for simplicity in the Autocomplete
+        // Adjust page/pageSize if needed, or implement scrolling pagination later
+        queryKey: ['productsSimple', token], 
+        queryFn: () => fetchProducts(token, 1, null), // Fetch page 1, null categoryId
+        enabled: !!token, 
+        staleTime: 5 * 60 * 1000, // Cache for 5 mins
+    });
+
     // --- Fetch Cart for Selected Client --- 
     const {
         data: cartData,
         isLoading: isLoadingCart,
         error: cartError,
         refetch: refetchCart, // Function to manually refetch cart
-    } = useQuery<Cart, Error>({ 
+    } = useQuery<CartViewResponse, Error>({ 
         queryKey: ['cart', selectedClient?.id, token], 
         queryFn: () => {
             console.log(`[CartPage] Attempting to fetch cart. Client Selected: ${!!selectedClient}, Client ID: ${selectedClient?.id}, Token Present: ${!!token}`);
             if (!selectedClient?.id || !token) {
                 console.log('[CartPage] Skipping fetchCart: Client ID or Token missing.');
-                return Promise.resolve(null as unknown as Cart); // Type hack for disabled state
+                return Promise.resolve(null as unknown as CartViewResponse); // Update type hack
             }
             return fetchCart(selectedClient.id, token);
         },
@@ -73,12 +96,40 @@ const CartPage: React.FC = () => {
         refetchOnWindowFocus: true, // Refetch if window regains focus
     });
 
-    // --- Cart Mutations --- 
-    const removeCartItemMutation = useMutation<Cart, Error, RemoveFromCartPayload>({ 
+    // --- Add to Cart Mutation --- 
+    const addToCartMutation = useMutation<CartActionResponse, Error, AddToCartPayload>({ 
+        mutationFn: (payload) => addToCart(payload, token), 
+        onSuccess: (data, payload) => { 
+            if (data.success) {
+                // Invalidate the cart query to refetch fresh data
+                queryClient.invalidateQueries({ queryKey: ['cart', payload.client_id, token] });
+                setSnackbarMessage('Item added to cart.'); 
+                // Reset add form
+                setSelectedProduct(null);
+                setQuantityToAdd(1);
+            } else {
+                // Handle backend reporting success: false
+                setSnackbarMessage('Failed to add item to cart. Please try again.'); 
+            }
+            setShowSnackbar(true); 
+        }, 
+        onError: (error) => { 
+            console.error("Failed to add item to cart:", error); 
+            setSnackbarMessage(`Error adding item: ${error.message}`); 
+            setShowSnackbar(true); 
+        }, 
+    });
+
+    // --- Remove/Clear Cart Mutations --- 
+    const removeCartItemMutation = useMutation<CartActionResponse, Error, RemoveFromCartPayload>({ 
         mutationFn: (payload) => removeFromCart(payload, token), 
-        onSuccess: (updatedCart, payload) => { 
-            queryClient.setQueryData(['cart', payload.client_id, token], updatedCart); 
-            setSnackbarMessage('Cart item removed.'); 
+        onSuccess: (data, payload) => { 
+            if (data.success) {
+                queryClient.invalidateQueries({ queryKey: ['cart', payload.client_id, token] });
+                setSnackbarMessage('Cart item removed.'); 
+            } else {
+                setSnackbarMessage('Failed to remove item. Please try again.'); 
+            }
             setShowSnackbar(true); 
         }, 
         onError: (error) => { 
@@ -88,11 +139,15 @@ const CartPage: React.FC = () => {
         }, 
     });
 
-    const clearCartMutation = useMutation<Cart, Error, CartActionPayload>({ 
+    const clearCartMutation = useMutation<CartActionResponse, Error, CartActionPayload>({ 
         mutationFn: (payload) => clearCart(payload, token), 
-        onSuccess: (updatedCart, payload) => { 
-            queryClient.setQueryData(['cart', payload.client_id, token], updatedCart); 
-            setSnackbarMessage('Cart cleared successfully.'); 
+        onSuccess: (data, payload) => { 
+            if (data.success) {
+                queryClient.invalidateQueries({ queryKey: ['cart', payload.client_id, token] });
+                setSnackbarMessage('Cart cleared successfully.'); 
+            } else {
+                setSnackbarMessage('Failed to clear cart. Please try again.'); 
+            }
             setShowSnackbar(true); 
         }, 
         onError: (error) => { 
@@ -105,6 +160,31 @@ const CartPage: React.FC = () => {
     // --- Handlers --- 
     const handleClientChange = (event: any, newValue: Client | null) => {
         setSelectedClient(newValue);
+        // Reset add form when client changes
+        setSelectedProduct(null);
+        setQuantityToAdd(1);
+    };
+
+    const handleProductChange = (event: any, newValue: Product | null) => {
+        setSelectedProduct(newValue);
+    };
+
+    const handleQuantityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const value = parseInt(event.target.value, 10);
+        setQuantityToAdd(value > 0 ? value : 1); // Ensure quantity is at least 1
+    };
+
+    const handleAddItemClick = () => {
+        if (!selectedClient || !selectedProduct || quantityToAdd <= 0) {
+            setSnackbarMessage('Please select a client, product, and valid quantity.');
+            setShowSnackbar(true);
+            return;
+        }
+        addToCartMutation.mutate({
+            client_id: selectedClient.id,
+            product_id: selectedProduct.id,
+            quantity: quantityToAdd,
+        });
     };
 
     const handleRemoveItemClick = (productId: string) => {
@@ -121,8 +201,9 @@ const CartPage: React.FC = () => {
 
     // Memoize options for Autocomplete
     const clientOptions = useMemo(() => clients, [clients]);
+    const productOptions = useMemo(() => productsData?.products || [], [productsData]);
     
-    const isCartMutating = removeCartItemMutation.isPending || clearCartMutation.isPending;
+    const isCartMutating = removeCartItemMutation.isPending || clearCartMutation.isPending || addToCartMutation.isPending;
 
     return (
         <Box sx={{ p: 3 }}>
@@ -162,6 +243,66 @@ const CartPage: React.FC = () => {
                 />
             </Paper>
 
+            {/* Add Item Section - Only show if client is selected */} 
+            {selectedClient && (
+                <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>Add Item to Cart for {selectedClient.first_name}</Typography>
+                    {productsError && (
+                        <Alert severity="warning" sx={{ mb: 2 }}>Could not load product list: {(productsError as Error).message}</Alert>
+                    )}
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={6}>
+                            <Autocomplete
+                                options={productOptions}
+                                loading={isLoadingProducts}
+                                getOptionLabel={(option) => `${option.name} (ID: ${option.id})`}
+                                value={selectedProduct}
+                                onChange={handleProductChange}
+                                isOptionEqualToValue={(option, value) => option.id === value.id}
+                                renderInput={(params) => (
+                                    <TextField 
+                                        {...params} 
+                                        label="Select Product" 
+                                        variant="outlined"
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            endAdornment: (
+                                                <React.Fragment>
+                                                    {isLoadingProducts ? <CircularProgress color="inherit" size={20} /> : null}
+                                                    {params.InputProps.endAdornment}
+                                                </React.Fragment>
+                                            ),
+                                        }}
+                                     />
+                                )}
+                            />
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                            <TextField
+                                label="Quantity"
+                                type="number"
+                                value={quantityToAdd}
+                                onChange={handleQuantityChange}
+                                fullWidth
+                                variant="outlined"
+                                inputProps={{ min: 1 }}
+                            />
+                        </Grid>
+                        <Grid item xs={6} sm={3}>
+                            <Button
+                                variant="contained"
+                                onClick={handleAddItemClick}
+                                disabled={!selectedProduct || isCartMutating}
+                                startIcon={addToCartMutation.isPending ? <CircularProgress size={20} /> : <AddShoppingCartIcon />}
+                                fullWidth
+                            >
+                                {addToCartMutation.isPending ? 'Adding...' : 'Add Item'}
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Paper>
+            )}
+
             {/* Cart Display */} 
             {selectedClient && (
                 <Paper elevation={1} sx={{ p: 2 }}>
@@ -184,7 +325,7 @@ const CartPage: React.FC = () => {
                     <Divider sx={{ mb: 2 }}/>
                     
                      {isLoadingCart && <Box sx={{textAlign: 'center', my: 2}}><CircularProgress /></Box>}
-                     {cartError && <Alert severity="error">Failed to load cart: {(cartError as Error).message}</Alert>}
+                     {cartError && <Alert severity="error">Failed to load cart: {cartError?.message}</Alert>}
                      {!isLoadingCart && !cartError && (!cartData || cartData.items.length === 0) && (
                           <Typography sx={{ textAlign: 'center', color: 'text.secondary', my: 2 }}>
                               Cart is empty.
@@ -192,15 +333,14 @@ const CartPage: React.FC = () => {
                       )}
                      {!isLoadingCart && !cartError && cartData && cartData.items.length > 0 && (
                          <List dense>
-                             {cartData.items.map((item) => (
+                             {cartData.items.map((item: CartItemView) => (
                                  <ListItem
-                                     key={item.product_id}
+                                     key={`${item.name}-${item.quantity}`} 
                                      secondaryAction={ 
                                          <IconButton
                                              edge="end"
                                              aria-label="remove item"
-                                             onClick={() => handleRemoveItemClick(item.product_id)}
-                                             disabled={isCartMutating || isLoadingCart}
+                                             disabled={isCartMutating || isLoadingCart || true}
                                              color="error"
                                          >
                                              {isCartMutating ? <CircularProgress size={20}/> : <DeleteForeverIcon />}
@@ -208,11 +348,15 @@ const CartPage: React.FC = () => {
                                      } 
                                  >
                                      <ListItemText
-                                         primary={`Product ID: ${item.product_id}`} // TODO: Fetch product names?
-                                         secondary={`Quantity: ${item.quantity}`}
+                                         primary={item.name}
+                                         secondary={`Qty: ${item.quantity} @ ${item.price_at_addition}`}
                                      />
                                  </ListItem>
                              ))}
+                             <ListItem sx={{ mt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                                 <ListItemText primaryTypographyProps={{fontWeight: 'bold'}} primary="Total:" />
+                                 <Typography variant="body1" fontWeight="bold">{cartData.total}</Typography>
+                             </ListItem>
                          </List>
                      )}
                 </Paper>

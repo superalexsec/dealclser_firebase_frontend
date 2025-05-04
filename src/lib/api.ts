@@ -365,11 +365,9 @@ export interface Product {
   id: string; // Assuming UUID
   name: string;
   description?: string | null;
-  price: number; // Price is now guaranteed to be a number after transformation
-  stock: number; // Assuming numeric stock (parsed in transformation too)
+  price: string; // Price is a string from backend
   category_id: string; // Foreign key to Category
-  image_url?: string | null; // Optional image
-  is_active?: boolean; // <-- Add is_active status (assuming backend provides it)
+  is_active: boolean; // is_active is guaranteed boolean
   // Add other fields if available
 }
 
@@ -379,21 +377,11 @@ export interface CategoryCreate {
     description?: string | null;
 }
 
-// Response type for fetching multiple categories
 export type CategoriesResponse = Category[];
 
-// Response type for fetching multiple products (assuming pagination metadata)
-export interface PaginatedProductsResponse {
-  items: Product[];
-  total: number;
-  page: number;
-  size: number;
-  pages: number;
-}
-
-// --- NEW: Actual type returned by the /products-api/products/ endpoint ---
-interface ActualProductApiResponse {
-    products: Product[];
+// Interface matching the actual backend response for GET /products
+export interface ProductListResponse {
+    products: Product[]; // Product type now matches backend (price: string, no stock/image)
     has_more: boolean;
 }
 
@@ -416,14 +404,15 @@ export const fetchCategories = async (token: string | null): Promise<CategoriesR
 export const fetchProducts = async (
   token: string | null,
   page: number = 1,
-  pageSize: number = 10,
+  // pageSize is not used by backend endpoint per spec, remove?
+  // pageSize: number = 10,
   categoryId?: string | null
-): Promise<PaginatedProductsResponse> => {
+): Promise<ProductListResponse> => { // Return the actual backend response structure
   if (!token) throw new Error('Authentication token is required.');
 
-  const params = new URLSearchParams({
+  const params = new URLSearchParams({ 
     page: page.toString(),
-    size: pageSize.toString(),
+    // size: pageSize.toString(), // Backend doesn't seem to use size/pageSize
   });
 
   if (categoryId) {
@@ -433,51 +422,17 @@ export const fetchProducts = async (
   console.log('Fetching products with params:', params.toString());
 
   // Fetch expecting the ACTUAL API response structure
-  const response = await apiClient.get<ActualProductApiResponse>('/products-api/products/', {
+  const response = await apiClient.get<ProductListResponse>('/products-api/products/', {
     headers: { Authorization: `Bearer ${token}` },
     params: params,
   });
 
   console.log('Received response for products:', response);
-  console.log('Response data:', response.data); // <-- Log the raw response data
+  console.log('Response data:', response.data);
 
-  // --- TRANSFORM the actual response to the expected PaginatedProductsResponse ---
-  const actualData = response.data;
-  // Parse price to number during mapping
-  const items = actualData.products.map(product => ({
-    ...product,
-    price: typeof product.price === 'string' ? parseFloat(product.price) : product.price ?? 0, // Parse string price to number
-    // Ensure stock is also a number, just in case
-    stock: typeof product.stock === 'string' ? parseInt(product.stock, 10) : product.stock ?? 0,
-  }));
-  
-  // Estimate total and pages for pagination component
-  let estimatedTotal: number;
-  if (!actualData.has_more) {
-    // If has_more is false, we know the exact total count up to this page
-    estimatedTotal = (page - 1) * pageSize + items.length;
-  } else {
-    // If has_more is true, we know there's at least one more item
-    // Set a total that guarantees the pagination shows a next page
-    estimatedTotal = page * pageSize + 1; 
-  }
-
-  const estimatedPages = Math.ceil(estimatedTotal / pageSize);
-
-  const transformedData: PaginatedProductsResponse = {
-    items: items,
-    page: page,
-    size: pageSize, // Reflect the requested size
-    total: estimatedTotal, // Use estimated total
-    pages: estimatedPages, // Use estimated pages
-  };
-
-  // Ensure the response matches the expected PaginatedProductsResponse structure
-  // If the API directly returns Product[], adjust the function and type accordingly.
-  // Example adaptation if API returns only the list:
-  // const items = response.data; // Assuming response.data is Product[]
-  // return { items, total: items.length, page: 1, size: items.length, pages: 1 }; 
-  return transformedData; // Return the transformed data
+  // No transformation needed, return the data directly
+  // The Product type within ProductListResponse now matches the backend structure
+  return response.data;
 };
 
 // --- NEW: API function to create a Category ---
@@ -493,19 +448,16 @@ export const createCategory = async (categoryData: CategoryCreate, token: string
 export interface ProductCreate {
     name: string;
     description?: string | null;
-    price: number;
-    stock: number;
+    price: string; // Price should be sent as string
     category_id: string;
-    image_url?: string | null; // Assuming image URL can be set on creation
 }
 
 // --- NEW: API function to create a Product ---
 export const createProduct = async (productData: ProductCreate, token: string | null): Promise<Product> => {
   if (!token) throw new Error('Authentication token is required.');
   
-  // Ensure price is sent as a string if required by backend, otherwise keep as number
-  // const payload = { ...productData, price: productData.price.toString() };
-  const payload = productData; // Assuming backend accepts price as number based on Product type
+  // Backend expects price as string, ProductCreate now has price as string
+  const payload = productData; // ProductCreate matches backend request body
 
   const response = await apiClient.post<Product>('/products-api/products/', payload, {
     headers: { Authorization: `Bearer ${token}` },
@@ -518,10 +470,8 @@ export const createProduct = async (productData: ProductCreate, token: string | 
 export interface ProductUpdate {
     name?: string;
     description?: string | null;
-    price?: number;
-    stock?: number;
+    price?: string | null; // Price is optional string
     category_id?: string;
-    image_url?: string | null;
     is_active?: boolean; 
 }
 
@@ -531,8 +481,8 @@ export const updateProduct = async (productId: string, productData: ProductUpdat
   if (!token) throw new Error('Authentication token is required.');
   if (!productId) throw new Error('Product ID is required for update.');
 
+  // Backend expects price as optional string, ProductUpdate now matches
   // Ensure price is sent as a string if required by backend, otherwise keep as number
-  // const payload = { ...productData, price: productData.price?.toString() }; 
   const payload = productData; // Assuming backend accepts price as number
 
   const response = await apiClient.put<Product>(`/products-api/products/${productId}/`, payload, {
@@ -541,23 +491,26 @@ export const updateProduct = async (productId: string, productData: ProductUpdat
   return response.data;
 };
 
-// --- Cart Types (Based on tenant_products_API.md and inferred structure) ---
+// --- Cart Types (Based on Backend API Spec) ---
 
-// Represents an item within the cart view response
-export interface CartItem {
-    product_id: string;
-    quantity: number;
-    // Add other product details if the API includes them (e.g., name, price)
-    // name?: string;
-    // price?: number;
+// Interface for the response from cart actions (add, remove, clear, checkout)
+export interface CartActionResponse {
+  success: boolean;
 }
 
-// Represents the structure of the cart view response
-export interface Cart {
-    client_id: string;
-    items: CartItem[];
-    total_price?: number; // If the backend calculates and returns total
-    // Add other cart metadata if available
+// Interface for an item displayed in the cart view
+export interface CartItemView {
+  name: string; // Product name
+  quantity: number;
+  price_at_addition: string; // Price as a string
+  // Note: product_id might not be directly available here per the spec?
+  // Need clarification if frontend needs product_id for remove action mapping.
+}
+
+// Interface for the cart view response
+export interface CartViewResponse {
+  items: CartItemView[];
+  total: string; // Total price as a string
 }
 
 // Payload for adding an item to the cart
@@ -583,13 +536,13 @@ export interface CartActionPayload {
 /**
  * Fetches the cart contents for a specific client.
  */
-export const fetchCart = async (clientId: string, token: string | null): Promise<Cart> => {
+export const fetchCart = async (clientId: string, token: string | null): Promise<CartViewResponse> => {
     if (!token) throw new Error('Authentication token is required.');
     if (!clientId) throw new Error('Client ID is required to fetch cart.');
 
     const params = new URLSearchParams({ client_id: clientId });
 
-    const response = await apiClient.get<Cart>(`/products-api/cart/view`, {
+    const response = await apiClient.get<CartViewResponse>(`/products-api/cart/view`, {
         headers: { Authorization: `Bearer ${token}` },
         params: params,
     });
@@ -600,67 +553,47 @@ export const fetchCart = async (clientId: string, token: string | null): Promise
  * Adds an item to a specific client's cart.
  * NOTE: Unlikely to be used directly from Tenant Admin UI.
  */
-export const addToCart = async (payload: AddToCartPayload, token: string | null): Promise<Cart> => {
+export const addToCart = async (payload: AddToCartPayload, token: string | null): Promise<CartActionResponse> => {
     if (!token) throw new Error('Authentication token is required.');
-    const response = await apiClient.post<Cart>('/products-api/cart/add', payload, {
+    const response = await apiClient.post<CartActionResponse>('/products-api/cart/add', payload, {
         headers: { Authorization: `Bearer ${token}` },
     });
-    // Assuming API returns the updated cart state
     return response.data;
 };
 
 /**
  * Removes an item from a specific client's cart.
  */
-export const removeFromCart = async (payload: RemoveFromCartPayload, token: string | null): Promise<Cart> => {
+export const removeFromCart = async (payload: RemoveFromCartPayload, token: string | null): Promise<CartActionResponse> => {
     if (!token) throw new Error('Authentication token is required.');
-    const response = await apiClient.post<Cart>('/products-api/cart/remove', payload, {
+    const response = await apiClient.post<CartActionResponse>('/products-api/cart/remove', payload, {
         headers: { Authorization: `Bearer ${token}` },
     });
-    // Assuming API returns the updated cart state
     return response.data;
 };
 
 /**
  * Clears all items from a specific client's cart.
  */
-export const clearCart = async (payload: CartActionPayload, token: string | null): Promise<Cart> => {
+export const clearCart = async (payload: CartActionPayload, token: string | null): Promise<CartActionResponse> => {
     if (!token) throw new Error('Authentication token is required.');
-    const response = await apiClient.post<Cart>('/products-api/cart/clear', payload, {
+    const response = await apiClient.post<CartActionResponse>('/products-api/cart/clear', payload, {
         headers: { Authorization: `Bearer ${token}` },
     });
-    // Assuming API returns the (now empty) cart state
     return response.data;
 };
 
 /**
  * Checks out a specific client's cart.
  * NOTE: Unlikely to be used directly from Tenant Admin UI.
- * The response type might vary depending on what checkout actually does.
  */
-export const checkoutCart = async (payload: CartActionPayload, token: string | null): Promise<any> => {
+export const checkoutCart = async (payload: CartActionPayload, token: string | null): Promise<CartActionResponse> => {
     if (!token) throw new Error('Authentication token is required.');
-    const response = await apiClient.post<any>('/products-api/cart/checkout', payload, {
+    const response = await apiClient.post<CartActionResponse>('/products-api/cart/checkout', payload, {
         headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
 };
-
-// --- Cart Functionality (Placeholder - Implementation Deferred) ---
-// TODO: Clarify CLIENT_UUID handling for tenant UI before implementing cart features.
-/*
-export interface CartItem {
-    // ... fields ...
-}
-export interface Cart {
-    // ... fields ...
-}
-export const fetchCart = async (token: string | null, clientId: string): Promise<Cart> => { ... };
-export const addToCart = async (token: string | null, clientId: string, productId: string, quantity: number): Promise<any> => { ... };
-export const removeFromCart = async (token: string | null, clientId: string, productId: string): Promise<any> => { ... };
-export const clearCart = async (token: string | null, clientId: string): Promise<any> => { ... };
-export const checkoutCart = async (token: string | null, clientId: string): Promise<any> => { ... };
-*/
 
 // --- Existing API Functions Continue Below ---
 // ... existing code ... 

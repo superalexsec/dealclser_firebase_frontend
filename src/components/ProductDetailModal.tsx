@@ -28,7 +28,7 @@ import {
     Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { Product, Category, ProductUpdate } from '../lib/api'; // Import necessary types
-import { SelectChangeEvent } from '@mui/material';
+import { SelectChangeEvent } from '@mui/material/Select';
 
 interface ProductDetailModalProps {
     open: boolean;
@@ -49,306 +49,218 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     isSaving, 
     saveError 
 }) => {
-
     const [isEditing, setIsEditing] = useState(false);
-    const [editFormState, setEditFormState] = useState<ProductUpdate>({});
+    // Initialize with partial to avoid errors before useEffect runs
+    const [editFormState, setEditFormState] = useState<Partial<ProductUpdate>>({}); 
     const [localError, setLocalError] = useState<string | null>(null);
 
-    // Reset form and editing state when product or open status changes
+    // Effect to initialize/reset form state when product or open status changes
     useEffect(() => {
         if (product && open) {
-            setIsEditing(false);
+            setIsEditing(false); // Default to view mode
             setLocalError(null);
-            // Initialize edit form state from the product prop
             setEditFormState({
                 name: product.name || '',
                 description: product.description || '',
-                price: product.price ?? 0,
-                stock: product.stock ?? 0,
+                price: product.price || '', // String price
                 category_id: product.category_id || '',
-                image_url: product.image_url || '',
-                is_active: product.is_active ?? true, // Default to active if undefined
+                is_active: product.is_active ?? true,
             });
-        } else {
-            setIsEditing(false); // Ensure editing is off if closed or no product
+        } else if (!open) {
+            // Clear state completely when dialog closes
+            setEditFormState({});
+            setIsEditing(false);
             setLocalError(null);
         }
     }, [product, open]);
 
-    if (!product) return null;
-
     const handleEditToggle = () => {
+        const wasEditing = isEditing;
         setIsEditing(!isEditing);
-        setLocalError(null); // Clear errors when toggling edit mode
-        // If cancelling edit, reset form state
-        if (isEditing) {
-             setEditFormState({
+        setLocalError(null); 
+        // If cancelling edit, reset form to original product values
+        if (wasEditing && product) {
+            setEditFormState({
                 name: product.name || '',
                 description: product.description || '',
-                price: product.price ?? 0,
-                stock: product.stock ?? 0,
+                price: product.price || '',
                 category_id: product.category_id || '',
-                image_url: product.image_url || '',
                 is_active: product.is_active ?? true,
             });
         }
     };
 
-    const handleInputChange = (field: keyof ProductUpdate) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const value = event.target.value;
-        setEditFormState(prev => ({ ...prev, [field]: value }));
+    // Generic handler for text inputs
+    const handleInputChange = (field: 'name' | 'description' | 'price') => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setEditFormState(prev => ({ ...prev, [field]: event.target.value }));
+    };
+    
+    // Specific handler for category select
+    const handleCategoryChange = (event: SelectChangeEvent<string>) => {
+        setEditFormState(prev => ({ ...prev, category_id: event.target.value }));
     };
 
-    // Specific handler for Select component as its event structure is different
-    const handleCategorySelectChange = (event: SelectChangeEvent<string>) => {
-         setEditFormState(prev => ({ ...prev, category_id: event.target.value as string }));
+    // Specific handler for is_active switch
+    const handleActiveChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setEditFormState(prev => ({ ...prev, is_active: event.target.checked }));
     };
 
-    const handleSwitchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const newActiveState = event.target.checked;
-        setEditFormState(prev => ({ ...prev, is_active: newActiveState }));
-        // Trigger save immediately for the active toggle
-        const updatePayload: ProductUpdate = { is_active: newActiveState };
-        // No need to setIsEditing(false) here as the switch itself is the action
-        onSave(product.id, updatePayload).catch((err) => {
-             console.error("Failed to update active status:", err);
-             // Optionally revert switch state if save fails
-             setEditFormState(prev => ({ ...prev, is_active: !newActiveState }));
-             setLocalError("Failed to update status. Please try again.");
-        });
-    };
-
-    const handleSaveChanges = () => {
-        // Basic validation
-        const priceStr = String(editFormState.price);
-        const stockStr = String(editFormState.stock);
-        const price = parseFloat(priceStr);
-        const stock = parseInt(stockStr, 10);
-
-        if (!editFormState.name?.trim()) {
-            setLocalError('Product name cannot be empty.');
-            return;
-        }
-        if (!editFormState.category_id) {
-            setLocalError('Category is required.');
-            return;
-        }
-        // Check if the price string is empty or if parsing fails
-        if (priceStr.trim() === '' || isNaN(price) || price < 0) {
-            setLocalError('Valid price is required (e.g., 10.99).');
-            return;
-        }
-        // Check if the stock string is empty or if parsing fails
-        if (stockStr.trim() === '' || isNaN(stock) || stock < 0) {
-            setLocalError('Valid stock is required (e.g., 5).');
-            return;
-        }
-
+    const handleSave = () => {
         setLocalError(null);
-        
-        const updatePayload: ProductUpdate = {
-            name: editFormState.name.trim(),
-            description: editFormState.description?.trim() || null,
-            price: price, // Send parsed number
-            stock: stock, // Send parsed number
-            category_id: editFormState.category_id,
-            image_url: editFormState.image_url?.trim() || null,
-            is_active: editFormState.is_active ?? true, // Ensure is_active is included
+        // Validate required fields in the current edit state
+        if (!editFormState.name?.trim() || !editFormState.price?.trim() || !editFormState.category_id) {
+            setLocalError('Name, Price, and Category are required.');
+            return;
+        }
+        // Validate price is a valid number string
+        if (isNaN(parseFloat(editFormState.price))) { 
+            setLocalError('Please enter a valid number for Price (e.g., 10.99).');
+            return;
+        }
+
+        // Construct the update payload from editFormState
+        const updateData: ProductUpdate = {
+             name: editFormState.name.trim(),
+             description: editFormState.description?.trim() || null,
+             price: editFormState.price.trim(), // Send trimmed string
+             category_id: editFormState.category_id,
+             is_active: editFormState.is_active ?? true, // Ensure boolean
         };
         
-        onSave(product.id, updatePayload).then(() => {
-            // Only turn off editing on successful save
-             setIsEditing(false); 
-        }).catch((err) => {
-            // Error is handled by the saveError prop (passed from parent mutation)
-            console.error("Save failed in modal:", err);
-            // No need to set localError here, as saveError prop will display the message
-        }); 
+        if (product) {
+            onSave(product.id, updateData);
+        } else {
+            setLocalError("Cannot save, original product data is missing.");
+        }
     };
 
-    // Determine the category name for display
-    const categoryName = categories.find(c => c.id === product.category_id)?.name || 'Unknown Category';
+    // Handle case where dialog is open but product is missing
+    if (open && !product) {
+         return (
+             <Dialog open={open} onClose={onClose}>
+                 <DialogTitle>Error</DialogTitle>
+                 <DialogContent><Alert severity="error">Product data is not available.</Alert></DialogContent>
+                 <DialogActions><Button onClick={onClose}>Close</Button></DialogActions>
+             </Dialog>
+         );
+    }
+    // If closed or product is loading, render nothing (or a loader if preferred)
+    if (!open || !product) {
+        return null; 
+    }
+
+    // Now we know product is not null, determine data source for display
+    const displayData = isEditing ? editFormState : product;
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                {isEditing ? 'Edit Product' : 'Product Details'}
-                <Box>
-                     {/* Disable switch while saving or not in edit mode (unless just toggling active) */} 
-                     <FormControlLabel 
-                         control={<Switch 
-                             checked={editFormState.is_active ?? true} 
-                             onChange={handleSwitchChange} 
-                             disabled={isSaving} 
-                         />} 
-                         label={editFormState.is_active ? "Active" : "Inactive"}
-                         sx={{ mr: 1 }}
-                     />
-                     {/* Show Cancel/Edit icons */} 
-                     <IconButton onClick={handleEditToggle} color="primary" disabled={isSaving}>
-                         {isEditing ? <CancelIcon /> : <EditIcon />}
-                     </IconButton>
-                 </Box>
-            </DialogTitle>
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+            {/* Title depends on mode */} 
+            <DialogTitle>{isEditing ? 'Edit Product' : 'Product Details'}</DialogTitle>
             <DialogContent dividers>
                 {(localError || saveError) && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                        {localError || saveError}
-                    </Alert>
+                    <Alert severity="error" sx={{ mb: 2 }}>{localError || saveError}</Alert>
                 )}
-                <Grid container spacing={2}>
-                    <Grid item xs={12} sm={4}>
-                        {/* Image Display/Edit URL */} 
-                        <CardMedia
-                            component="img"
-                            height="200"
-                            image={isEditing ? editFormState.image_url || 'https://via.placeholder.com/200?text=No+Image' : product.image_url || 'https://via.placeholder.com/200?text=No+Image'}
-                            alt={isEditing ? editFormState.name || '' : product.name}
-                            sx={{ objectFit: 'contain', width: '100%', mb: isEditing ? 1 : 0 }}
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                    {/* Name */}
+                    <Grid item xs={12}>
+                        <TextField
+                            label="Product Name"
+                            fullWidth
+                            required
+                            // Use displayData, ensuring fallback for potentially partial editFormState
+                            value={displayData.name ?? ''}
+                            onChange={handleInputChange('name')}
+                            disabled={!isEditing || isSaving}
+                            InputProps={{ readOnly: !isEditing }}
+                            variant={isEditing ? "outlined" : "standard"}
+                            error={isEditing && !!localError && !editFormState.name?.trim()} // Validate against editFormState
                         />
-                        {isEditing && (
-                            <TextField
-                                margin="dense"
-                                label="Image URL"
-                                type="url"
-                                fullWidth
-                                variant="outlined"
-                                value={editFormState.image_url || ''}
-                                onChange={handleInputChange('image_url')}
-                                disabled={isSaving}
-                            />
-                        )}
                     </Grid>
-                    <Grid item xs={12} sm={8}>
-                        {/* Name Display/Edit */} 
-                        {isEditing ? (
-                            <TextField
-                                required
-                                margin="dense"
-                                label="Product Name"
-                                fullWidth
-                                variant="outlined"
-                                value={editFormState.name || ''}
-                                onChange={handleInputChange('name')}
-                                disabled={isSaving}
-                                error={!!localError && !editFormState.name?.trim()}
-                            />
-                        ) : (
-                            <Typography variant="h5" gutterBottom>{product.name}</Typography>
-                        )}
-
-                        {/* Description Display/Edit */} 
-                        {isEditing ? (
-                            <TextField
-                                margin="dense"
-                                label="Description"
-                                fullWidth
-                                multiline
-                                rows={3}
-                                variant="outlined"
-                                value={editFormState.description || ''}
-                                onChange={handleInputChange('description')}
-                                disabled={isSaving}
-                            />
-                        ) : (
-                            <Typography variant="body1" paragraph>
-                                {product.description || 'No description available.'}
-                            </Typography>
-                        )}
-
-                        {/* Price/Stock Display/Edit */} 
-                        <Box sx={{ mb: 1, mt: isEditing ? 1 : 0 }}>
-                            {isEditing ? (
-                                <Grid container spacing={1}>
-                                    <Grid item xs={6}>
-                                        <TextField
-                                            required
-                                            margin="dense"
-                                            label="Price"
-                                            type="number" // Keep type=number for browser validation hints
-                                            fullWidth
-                                            variant="outlined"
-                                            value={editFormState.price ?? ''} // Use state value directly
-                                            onChange={handleInputChange('price')} // Let state handle it
-                                            InputProps={{ inputProps: { min: 0, step: "0.01" } }}
-                                            disabled={isSaving}
-                                            error={!!localError && (String(editFormState.price ?? '').trim() === '' || isNaN(parseFloat(String(editFormState.price))) || parseFloat(String(editFormState.price)) < 0)}
-                                            helperText={!!localError && (String(editFormState.price ?? '').trim() === '' || isNaN(parseFloat(String(editFormState.price))) || parseFloat(String(editFormState.price)) < 0) ? "Valid price required" : ""}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={6}>
-                                        <TextField
-                                            required
-                                            margin="dense"
-                                            label="Stock"
-                                            type="number" // Keep type=number
-                                            fullWidth
-                                            variant="outlined"
-                                            value={editFormState.stock ?? ''} // Use state value
-                                            onChange={handleInputChange('stock')}
-                                            InputProps={{ inputProps: { min: 0, step: "1" } }}
-                                            disabled={isSaving}
-                                            error={!!localError && (String(editFormState.stock ?? '').trim() === '' || isNaN(parseInt(String(editFormState.stock), 10)) || parseInt(String(editFormState.stock), 10) < 0)}
-                                            helperText={!!localError && (String(editFormState.stock ?? '').trim() === '' || isNaN(parseInt(String(editFormState.stock), 10)) || parseInt(String(editFormState.stock), 10) < 0) ? "Valid stock required" : ""}
-                                        />
-                                    </Grid>
-                                </Grid>
-                            ) : (
-                                <>
-                                    <Chip label={`Price: ${product.price.toFixed(2)}`} size="small" color="success" sx={{ mr: 1 }} />
-                                    <Chip label={`Stock: ${product.stock}`} size="small" color={product.stock > 0 ? "info" : "warning"} />
-                                </>
-                            )}
-                        </Box>
-
-                        {/* Category Display/Select */} 
-                        {isEditing ? (
-                            <FormControl fullWidth required margin="dense" error={!!localError && !editFormState.category_id} disabled={isSaving}>
-                                <InputLabel id="edit-category-select-label">Category</InputLabel>
-                                <Select
-                                    labelId="edit-category-select-label"
-                                    value={editFormState.category_id || ''}
-                                    label="Category"
-                                    onChange={handleCategorySelectChange} // Use specific handler
-                                >
-                                    {categories.map((cat) => (
-                                        <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                                    ))}
-                                </Select>
-                                {!!localError && !editFormState.category_id && <FormHelperText>Category is required.</FormHelperText>}
-                            </FormControl>
-                        ) : (
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                Category: {categoryName}
-                            </Typography>
-                        )}
-
-                         {/* Display Active Status (non-editable view) */} 
-                         {!isEditing && (
-                             <Typography variant="body2" sx={{ mt: 1, color: product.is_active ? 'success.main' : 'text.secondary' }}>
-                                 Status: {product.is_active ? 'Active' : 'Inactive'}
-                             </Typography>
-                         )}
-
-                    </Grid>{/* End sm={8} Grid */}
-                </Grid>{/* End container Grid */}
+                    {/* Category */}
+                    <Grid item xs={12} sm={6}>
+                         <FormControl fullWidth required error={isEditing && !!localError && !editFormState.category_id} disabled={!isEditing || isSaving}>
+                            <InputLabel id={`category-select-label-${product.id}`}>Category</InputLabel>
+                            <Select
+                                labelId={`category-select-label-${product.id}`}
+                                // Use displayData, ensuring fallback
+                                value={displayData.category_id ?? ''}
+                                label="Category"
+                                onChange={handleCategoryChange}
+                                variant={isEditing ? "outlined" : "standard"}
+                                // Select doesn't have readOnly, rely on disabled
+                                // inputProps={{ readOnly: !isEditing }} 
+                            >
+                                <MenuItem value="" disabled><em>Select Category</em></MenuItem>
+                                {categories.map((cat) => (
+                                    <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                                ))}
+                            </Select>
+                            {isEditing && !!localError && !editFormState.category_id && <FormHelperText>Category is required.</FormHelperText>}
+                        </FormControl>
+                    </Grid>
+                    {/* Price */}
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            label="Price"
+                            fullWidth
+                            required
+                            // Use displayData, ensuring fallback
+                            value={displayData.price ?? ''}
+                            onChange={handleInputChange('price')}
+                            disabled={!isEditing || isSaving}
+                            InputProps={{ readOnly: !isEditing }}
+                            variant={isEditing ? "outlined" : "standard"}
+                            error={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price)))} // Validate against editFormState
+                            helperText={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price))) ? 'Valid number required' : ''}
+                            type="text" // Price is text
+                        />
+                    </Grid>
+                    {/* Description */}
+                    <Grid item xs={12}>
+                        <TextField
+                            label="Description"
+                            fullWidth
+                            multiline
+                            rows={3}
+                            // Use displayData, ensuring fallback
+                            value={displayData.description ?? ''}
+                            onChange={handleInputChange('description')}
+                            disabled={!isEditing || isSaving}
+                            InputProps={{ readOnly: !isEditing }}
+                            variant={isEditing ? "outlined" : "standard"}
+                        />
+                    </Grid>
+                    {/* Status (Is Active) */}
+                    <Grid item xs={12}>
+                        <FormControlLabel 
+                            control={<Switch 
+                                // Use displayData, ensuring fallback and default
+                                checked={displayData.is_active ?? true} 
+                                onChange={handleActiveChange}
+                                disabled={!isEditing || isSaving}
+                            />} 
+                            label={(displayData.is_active ?? true) ? "Active" : "Disabled"}
+                         />
+                    </Grid>
+                </Grid>
             </DialogContent>
             <DialogActions>
-                {isEditing ? (
-                    <>
-                        <Button onClick={handleEditToggle} disabled={isSaving}>Cancel</Button>
-                        <Button 
-                            onClick={handleSaveChanges} 
-                            variant="contained" 
-                            disabled={isSaving} 
-                            startIcon={isSaving ? <CircularProgress size={20}/> : <SaveIcon />}
-                        >
-                            {isSaving ? 'Saving...' : 'Save Changes'}
-                        </Button>
-                    </>
-                ) : (
+                 {/* Toggle Edit/Cancel */} 
+                 <Button onClick={handleEditToggle} disabled={isSaving}>
+                    {isEditing ? 'Cancel' : 'Edit'}
+                </Button>
+                {/* Show Save only when editing, otherwise show Close */} 
+                 {isEditing ? (
+                     <Button 
+                        onClick={handleSave} 
+                        variant="contained"
+                        disabled={isSaving} // Disable while saving
+                    >
+                        {isSaving ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                 ) : (
                     <Button onClick={onClose}>Close</Button>
-                )}
+                 )}
             </DialogActions>
         </Dialog>
     );
