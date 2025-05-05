@@ -12,9 +12,10 @@ if (!backendUrl) {
 const apiClient: AxiosInstance = axios.create({
   // Set baseURL from environment variable during initialization
   baseURL: backendUrl, 
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // REMOVED default Content-Type header. Axios will set it appropriately per request.
+  // headers: {
+  //   'Content-Type': 'application/json',
+  // },
 });
 
 // Axios request interceptor to dynamically add the Authorization header
@@ -149,8 +150,8 @@ export interface UpdateModuleActiveStatusPayload {
 
 // Represents a single step (message) within a message flow
 export interface MessageFlowStep {
-  // id?: string; // Does the backend return/require an ID for each step?
-  step_number?: number; // Does the backend return/require a step number?
+  id: string; // Assuming backend provides an ID for steps if needed for keys
+  step_number: number;
   message_content: string;
   // Add other relevant fields returned by the backend if needed
 }
@@ -358,16 +359,25 @@ export interface Category {
   id: string; // Assuming UUID based on PRODUCT_UUID format
   name: string;
   description?: string | null;
+  tenant_id: string; // Added based on schema
+  is_active: boolean; // Added based on schema
+  created_at: string; // Added based on schema
+  updated_at: string; // Added based on schema
   // Add other fields if available from the actual API response
 }
 
 export interface Product {
   id: string; // Assuming UUID
+  tenant_id: string; // Added based on schema
   name: string;
   description?: string | null;
   price: string; // Price is a string from backend
   category_id: string; // Foreign key to Category
+  sku?: string | null; // Added based on schema
   is_active: boolean; // is_active is guaranteed boolean
+  created_at: string; // Added based on schema
+  updated_at: string; // Added based on schema
+  image_urls: string[]; // Added based on schema (array of URLs)
   // Add other fields if available
 }
 
@@ -375,14 +385,17 @@ export interface Product {
 export interface CategoryCreate {
     name: string;
     description?: string | null;
+    // tenant_id is handled by backend based on token
+    // is_active defaults to true in backend?
 }
 
 export type CategoriesResponse = Category[];
 
 // Interface matching the actual backend response for GET /products
 export interface ProductListResponse {
-    products: Product[]; // Product type now matches backend (price: string, no stock/image)
+    products: Product[]; // Updated Product type
     has_more: boolean;
+    // Add total_count or other pagination fields if backend provides them
 }
 
 // --- NEW: Product Catalog API Functions ---
@@ -392,10 +405,10 @@ export interface ProductListResponse {
  */
 export const fetchCategories = async (token: string | null): Promise<CategoriesResponse> => {
   if (!token) throw new Error('Authentication token is required.');
-  const response = await apiClient.get<CategoriesResponse>('/products-api/categories/', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  const config = { headers: { Authorization: `Bearer ${token}` } };
+  // Assuming categories endpoint is /products-api/categories/
+  const { data } = await apiClient.get<CategoriesResponse>('/products-api/categories/', config);
+  return data;
 };
 
 /**
@@ -404,65 +417,104 @@ export const fetchCategories = async (token: string | null): Promise<CategoriesR
 export const fetchProducts = async (
   token: string | null,
   page: number = 1,
-  // pageSize is not used by backend endpoint per spec, remove?
-  // pageSize: number = 10,
   categoryId?: string | null
-): Promise<ProductListResponse> => { // Return the actual backend response structure
-  if (!token) throw new Error('Authentication token is required.');
-
-  const params = new URLSearchParams({ 
-    page: page.toString(),
-    // size: pageSize.toString(), // Backend doesn't seem to use size/pageSize
-  });
-
-  if (categoryId) {
-    params.append('category_id', categoryId);
-  }
-
-  console.log('Fetching products with params:', params.toString());
-
-  // Fetch expecting the ACTUAL API response structure
-  const response = await apiClient.get<ProductListResponse>('/products-api/products/', {
-    headers: { Authorization: `Bearer ${token}` },
-    params: params,
-  });
-
-  console.log('Received response for products:', response);
-  console.log('Response data:', response.data);
-
-  // No transformation needed, return the data directly
-  // The Product type within ProductListResponse now matches the backend structure
-  return response.data;
+): Promise<ProductListResponse> => {
+    if (!token) throw new Error('Authentication token is required.');
+    // Define params ensuring category_id is only added if present
+    const params: Record<string, any> = {
+        page: page,
+        size: 12, // Example page size
+    };
+    if (categoryId) {
+        params.category_id = categoryId;
+    }
+    
+    // Define config with headers and params
+    const config = {
+        headers: { Authorization: `Bearer ${token}` },
+        params: params
+    };
+    
+    // Ensure the URL is correct, e.g., /products-api/products/
+    const { data } = await apiClient.get<ProductListResponse>('/products-api/products/', config);
+    return data;
 };
 
-// --- NEW: API function to create a Category ---
+// API function to create a Category
 export const createCategory = async (categoryData: CategoryCreate, token: string | null): Promise<Category> => {
   if (!token) throw new Error('Authentication token is required.');
-  const response = await apiClient.post<Category>('/products-api/categories/', categoryData, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  const config = { headers: { Authorization: `Bearer ${token}` } };
+  // Assuming create category endpoint is /products-api/categories/
+  const { data } = await apiClient.post<Category>('/products-api/categories/', categoryData, config);
+  return data;
 };
 
-// --- NEW: Type for creating a Product ---
+// Type for creating a Product
 export interface ProductCreate {
     name: string;
     description?: string | null;
     price: string; // Price should be sent as string
     category_id: string;
+    sku?: string | null; // Added SKU
+    is_active?: boolean; // Added is_active (optional, default likely true)
 }
 
-// --- NEW: API function to create a Product ---
-export const createProduct = async (productData: ProductCreate, token: string | null): Promise<Product> => {
-  if (!token) throw new Error('Authentication token is required.');
-  
-  // Backend expects price as string, ProductCreate now has price as string
-  const payload = productData; // ProductCreate matches backend request body
+// API function to create a Product (Handles file uploads with metadata field)
+export const createProduct = async (
+    productData: ProductCreate, 
+    files: File[] | null, // Accept files
+    token: string | null
+): Promise<Product> => {
+    if (!token) throw new Error('Authentication token is required.');
 
-  const response = await apiClient.post<Product>('/products-api/products/', payload, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+    const formData = new FormData();
+
+    // 1. Create metadata object (ensure all needed fields are included)
+    const metadata = {
+        name: productData.name,
+        description: productData.description,
+        price: productData.price,
+        category_id: productData.category_id,
+        sku: productData.sku,
+        is_active: productData.is_active,
+    };
+
+    // 2. Stringify the metadata object
+    const metadataString = JSON.stringify(metadata);
+
+    // 3. Append the metadata string as a single field
+    formData.append('metadata', metadataString);
+
+    // 4. Append files as before
+    if (files && files.length > 0) {
+        files.forEach(file => {
+            formData.append('files', file, file.name);
+        });
+    }
+
+    // --- DEBUGGING: Log FormData entries before sending --- 
+    console.log("--- FormData Entries Before Sending ---");
+    formData.forEach((value, key) => {
+        if (value instanceof File) {
+            console.log(`${key}: [File] ${value.name}, Type: ${value.type}, Size: ${value.size}`);
+        } else {
+            console.log(`${key}: ${value}`);
+        }
+    });
+    console.log("---------------------------------------");
+    // --- END DEBUGGING --- 
+
+    // Make the POST request with FormData
+    const config = {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            // Content-Type is set automatically by browser/axios for FormData
+        }
+    };
+
+    // Ensure the endpoint /products-api/products/ is correct
+    const response = await apiClient.post<Product>('/products-api/products/', formData, config);
+    return response.data;
 };
 
 // --- NEW: Type for updating a Product ---
@@ -472,6 +524,7 @@ export interface ProductUpdate {
     description?: string | null;
     price?: string | null; // Price is optional string
     category_id?: string;
+    sku?: string | null; // Allow updating SKU
     is_active?: boolean; 
 }
 
@@ -481,14 +534,10 @@ export const updateProduct = async (productId: string, productData: ProductUpdat
   if (!token) throw new Error('Authentication token is required.');
   if (!productId) throw new Error('Product ID is required for update.');
 
-  // Backend expects price as optional string, ProductUpdate now matches
-  // Ensure price is sent as a string if required by backend, otherwise keep as number
-  const payload = productData; // Assuming backend accepts price as number
-
-  const response = await apiClient.put<Product>(`/products-api/products/${productId}/`, payload, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  const config = { headers: { Authorization: `Bearer ${token}` } };
+  // Ensure the endpoint is correct: /products-api/products/{product_id}
+  const { data } = await apiClient.put<Product>(`/products-api/products/${productId}`, productData, config);
+  return data;
 };
 
 // --- Cart Types (Based on Backend API Spec) ---
