@@ -16,6 +16,7 @@ import {
     MenuItem,
     Snackbar,
     CardActions,
+    CardMedia,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
@@ -147,7 +148,8 @@ const ProductsCatalogPage: React.FC = () => {
         },
     });
 
-    // Mutation for Updating Product
+    // Mutation for Updating Product (Keep commented out unless implementing update logic)
+    /*
     const { 
         mutate: updateProductMutate, 
         isPending: isUpdatingProduct, 
@@ -167,6 +169,10 @@ const ProductsCatalogPage: React.FC = () => {
               // Error state is passed to modal
         },
     });
+    */
+   // Placeholder state/values for ProductDetailModal update props
+   const isUpdatingProduct = false; // Placeholder
+   const updateProductError: Error | null = null; // Placeholder
 
     // Wrapper function for AddCategoryDialog onSave prop
     const handleSaveCategory = async (categoryData: CategoryCreate): Promise<void> => {
@@ -259,6 +265,13 @@ const ProductsCatalogPage: React.FC = () => {
     // Determine loading state for initial load vs subsequent loads
     const isInitialLoading = isLoadingProducts && currentPage === 1;
 
+    // Placeholder function for ProductDetailModal onSave prop
+    const handleSaveProductUpdate = async (productId: string, productData: ProductUpdate): Promise<void> => {
+        console.warn('Product update/delete functionality not fully implemented yet.');
+        // In a real implementation, you would call updateProductMutate here
+        return Promise.resolve(); 
+    };
+
     return (
         <Box sx={{ p: 3 }}>
             <Typography variant="h4" gutterBottom>Product Catalog</Typography>
@@ -319,41 +332,57 @@ const ProductsCatalogPage: React.FC = () => {
             {/* Product Grid */}
             {!isInitialLoading && !productsError && (
                 <Grid container spacing={3}>
-                    {allProducts.length > 0 ? allProducts.map((product) => (
-                        <Grid item key={product.id} xs={12} sm={6} md={4} lg={3}>
-                            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                {/* Add image display here if needed, using product.image_urls[0] ? */}
-                                <CardContent sx={{ flexGrow: 1 }}>
-                                    <Typography gutterBottom variant="h6" component="div">
-                                        {product.name}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        {product.description || 'No description'}
-                                    </Typography>
-                                    <Typography variant="h5" sx={{ mt: 1 }}>
-                                        {/* Format price if necessary */}
-                                        ${product.price} 
-                                    </Typography>
-                                     {/* Display SKU if available */}
-                                     {product.sku && (
-                                        <Typography variant="caption" color="text.secondary" display="block"> 
-                                            SKU: {product.sku}
-                                        </Typography>
+                    {allProducts.length > 0 ? allProducts.map((product) => {
+                        // --- DEBUG: Log product image URLs (keep for later) ---
+                        // console.log(`Product: ${product.name}, Image URLs:`, product.image_urls);
+                        // --- END DEBUG ---
+                        return (
+                            <Grid item key={product.id} xs={12} sm={6} md={4} lg={3} onClick={() => handleOpenDetailModal(product)} sx={{ cursor: 'pointer' }}> 
+                                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                    {/* Re-add image display logic */}
+                                    {product.image_urls && product.image_urls.length > 0 ? (
+                                        <CardMedia
+                                            component="img"
+                                            sx={{ 
+                                                height: 140, // Or other fixed height
+                                                objectFit: 'contain' // Or 'cover', depending on desired look
+                                            }}
+                                            image={product.image_urls[0]} // Display the first image
+                                            alt={product.name} // Use product name as alt text
+                                        />
+                                    ) : (
+                                        // Optional: Placeholder if no image
+                                        <Box sx={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'grey.200' }}>
+                                            <Typography variant="caption" color="text.secondary">
+                                                No Image
+                                            </Typography>
+                                        </Box>
                                     )}
-                                    {/* Display Active Status */}
-                                    <Typography variant="caption" color={product.is_active ? 'success.main' : 'error.main'}>
-                                        {product.is_active ? 'Active' : 'Inactive'}
-                                    </Typography>
-                                </CardContent>
-                                <CardActions>
-                                    {/* Link to Product Detail Modal */}
-                                    <Button size="small" onClick={() => handleOpenDetailModal(product)}>View Details</Button>
-                                    {/* Add to Cart Button - Requires Cart Context/Logic */}
-                                    {/* <Button size="small">Add to Cart</Button> */}
-                                </CardActions>
-                            </Card>
-                        </Grid>
-                    )) : (
+                                    
+                                    <CardContent sx={{ flexGrow: 1 }}>
+                                        <Typography gutterBottom variant="h6" component="div">
+                                            {product.name}
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {product.description || 'No description'}
+                                        </Typography>
+                                        <Typography variant="h5" sx={{ mt: 1 }}>
+                                            ${product.price} 
+                                        </Typography>
+                                         {product.sku && (
+                                            <Typography variant="caption" color="text.secondary" display="block"> 
+                                                SKU: {product.sku}
+                                            </Typography>
+                                        )}
+                                        <Typography variant="caption" color={product.is_active ? 'success.main' : 'error.main'}>
+                                            {product.is_active ? 'Active' : 'Inactive'}
+                                        </Typography>
+                                    </CardContent>
+                                    {/* CardActions were previously removed */}
+                                </Card>
+                            </Grid>
+                        );
+                    }) : (
                         <Grid item xs={12}>
                              <Typography>No products found matching your criteria.</Typography>
                         </Grid>
@@ -400,19 +429,20 @@ const ProductsCatalogPage: React.FC = () => {
                 categories={categories} 
             />
 
-            {/* Comment out ProductDetailModal as its update logic is not implemented */}
-            {/* {selectedProduct && (
+            {/* Uncomment and update ProductDetailModal */}
+            {selectedProduct && (
                 <ProductDetailModal 
                     open={isDetailModalOpen} 
                     onClose={handleCloseDetailModal} 
                     product={selectedProduct} 
-                    // Required props missing:
-                    // categories={categories}
-                    // onSave={handleSaveProductUpdate} 
-                    // isSaving={isUpdatingProduct}
-                    // saveError={updateProductError?.message || null}
+                    // Pass required props:
+                    categories={categories} // Pass fetched categories
+                    onSave={handleSaveProductUpdate} // Pass placeholder update handler
+                    isSaving={isUpdatingProduct} // Pass placeholder saving state
+                    // Pass null directly to avoid persistent linter error on placeholder
+                    saveError={null} 
                 />
-            )} */}
+            )}
 
             {/* Snackbars */}
             <Snackbar 

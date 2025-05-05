@@ -9,7 +9,6 @@ import {
     Box,
     Chip,
     Grid,
-    CardMedia,
     TextField,
     FormControl,
     InputLabel,
@@ -29,6 +28,11 @@ import {
 } from '@mui/icons-material';
 import { Product, Category, ProductUpdate } from '../lib/api'; // Import necessary types
 import { SelectChangeEvent } from '@mui/material/Select';
+
+// Import react-slick
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick-theme.css";
 
 interface ProductDetailModalProps {
     open: boolean;
@@ -152,95 +156,162 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     // Now we know product is not null, determine data source for display
     const displayData = isEditing ? editFormState : product;
 
+    // Carousel settings (adjust as needed)
+    const carouselSettings = {
+        dots: true,
+        infinite: product.image_urls && product.image_urls.length > 1, // Only loop if multiple images
+        speed: 500,
+        slidesToShow: 1,
+        slidesToScroll: 1,
+        arrows: true,
+        adaptiveHeight: true // Adjust height to slide content
+    };
+
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            {/* Title depends on mode */} 
+        <Dialog open={open} onClose={onClose} maxWidth="md" /* Use wider modal for layout */ fullWidth>
             <DialogTitle>{isEditing ? 'Edit Product' : 'Product Details'}</DialogTitle>
             <DialogContent dividers>
                 {(localError || saveError) && (
                     <Alert severity="error" sx={{ mb: 2 }}>{localError || saveError}</Alert>
                 )}
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                    {/* Name */}
-                    <Grid item xs={12}>
-                        <TextField
-                            label="Product Name"
-                            fullWidth
-                            required
-                            // Use displayData, ensuring fallback for potentially partial editFormState
-                            value={displayData.name ?? ''}
-                            onChange={handleInputChange('name')}
-                            disabled={!isEditing || isSaving}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                            error={isEditing && !!localError && !editFormState.name?.trim()} // Validate against editFormState
-                        />
+                {/* Use Grid layout: Image/Carousel on left, details on right */}
+                <Grid container spacing={3} sx={{ mt: 1 }}>
+                    {/* Image Section (Carousel or Single Image) */}
+                    <Grid item xs={12} md={6}> {/* Takes half width on medium screens and up */}
+                        {product.image_urls && product.image_urls.length > 1 ? (
+                             <Box sx={{ mb: 2, '.slick-prev:before, .slick-next:before': { color: 'grey' } }}> {/* Style arrows */}
+                                <Slider {...carouselSettings}>
+                                    {product.image_urls.map((url, index) => (
+                                        <Box key={index} component="div"> {/* Slider needs div */}
+                                            <Box 
+                                                component="img"
+                                                src={url}
+                                                alt={`${product.name} - ${index + 1}`}
+                                                sx={{ 
+                                                    width: '100%', 
+                                                    height: 'auto', // Auto height to maintain aspect ratio
+                                                    maxHeight: '400px', // Limit max height
+                                                    objectFit: 'contain', 
+                                                    display: 'block', // Prevent extra space below img
+                                                    margin: '0 auto' // Center image if needed
+                                                }}
+                                            />
+                                        </Box>
+                                    ))}
+                                </Slider>
+                            </Box>
+                        ) : product.image_urls && product.image_urls.length === 1 ? (
+                            // Single Image
+                             <Box 
+                                component="img"
+                                src={product.image_urls[0]}
+                                alt={product.name}
+                                sx={{ 
+                                    width: '100%', 
+                                    height: 'auto',
+                                    maxHeight: '400px',
+                                    objectFit: 'contain', 
+                                    display: 'block', 
+                                    mb: 2 
+                                }}
+                            />
+                        ) : (
+                            // No Image Placeholder
+                            <Box sx={{ 
+                                height: 200, // Or adjust height
+                                width: '100%', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                backgroundColor: 'grey.200',
+                                borderRadius: 1,
+                                mb: 2 
+                            }}> 
+                                <Typography variant="caption" color="text.secondary">
+                                    No Image Available
+                                </Typography>
+                            </Box>
+                        )}
                     </Grid>
-                    {/* Category */}
-                    <Grid item xs={12} sm={6}>
-                         <FormControl fullWidth required error={isEditing && !!localError && !editFormState.category_id} disabled={!isEditing || isSaving}>
-                            <InputLabel id={`category-select-label-${product.id}`}>Category</InputLabel>
-                            <Select
-                                labelId={`category-select-label-${product.id}`}
-                                // Use displayData, ensuring fallback
-                                value={displayData.category_id ?? ''}
-                                label="Category"
-                                onChange={handleCategoryChange}
-                                variant={isEditing ? "outlined" : "standard"}
-                                // Select doesn't have readOnly, rely on disabled
-                                // inputProps={{ readOnly: !isEditing }} 
-                            >
-                                <MenuItem value="" disabled><em>Select Category</em></MenuItem>
-                                {categories.map((cat) => (
-                                    <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                                ))}
-                            </Select>
-                            {isEditing && !!localError && !editFormState.category_id && <FormHelperText>Category is required.</FormHelperText>}
-                        </FormControl>
-                    </Grid>
-                    {/* Price */}
-                    <Grid item xs={12} sm={6}>
-                        <TextField
-                            label="Price"
-                            fullWidth
-                            required
-                            // Use displayData, ensuring fallback
-                            value={displayData.price ?? ''}
-                            onChange={handleInputChange('price')}
-                            disabled={!isEditing || isSaving}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                            error={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price)))} // Validate against editFormState
-                            helperText={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price))) ? 'Valid number required' : ''}
-                            type="text" // Price is text
-                        />
-                    </Grid>
-                    {/* Description */}
-                    <Grid item xs={12}>
-                        <TextField
-                            label="Description"
-                            fullWidth
-                            multiline
-                            rows={3}
-                            // Use displayData, ensuring fallback
-                            value={displayData.description ?? ''}
-                            onChange={handleInputChange('description')}
-                            disabled={!isEditing || isSaving}
-                            InputProps={{ readOnly: !isEditing }}
-                            variant={isEditing ? "outlined" : "standard"}
-                        />
-                    </Grid>
-                    {/* Status (Is Active) */}
-                    <Grid item xs={12}>
-                        <FormControlLabel 
-                            control={<Switch 
-                                // Use displayData, ensuring fallback and default
-                                checked={displayData.is_active ?? true} 
-                                onChange={handleActiveChange}
-                                disabled={!isEditing || isSaving}
-                            />} 
-                            label={(displayData.is_active ?? true) ? "Active" : "Disabled"}
-                         />
+
+                    {/* Details Section */}
+                    <Grid item xs={12} md={6}> {/* Takes other half width */}
+                        <Grid container spacing={2}>
+                            {/* Name */}
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Product Name"
+                                    fullWidth
+                                    required
+                                    value={displayData.name ?? ''}
+                                    onChange={handleInputChange('name')}
+                                    disabled={!isEditing || isSaving}
+                                    InputProps={{ readOnly: !isEditing }}
+                                    variant={isEditing ? "outlined" : "standard"}
+                                    error={isEditing && !!localError && !editFormState.name?.trim()}
+                                />
+                            </Grid>
+                            {/* Category */}
+                            <Grid item xs={12} sm={6}>
+                                 <FormControl fullWidth required error={isEditing && !!localError && !editFormState.category_id} disabled={!isEditing || isSaving}>
+                                    <InputLabel id={`category-select-label-${product.id}`}>Category</InputLabel>
+                                    <Select
+                                        labelId={`category-select-label-${product.id}`}
+                                        value={displayData.category_id ?? ''}
+                                        label="Category"
+                                        onChange={handleCategoryChange}
+                                        variant={isEditing ? "outlined" : "standard"}
+                                    >
+                                        <MenuItem value="" disabled><em>Select Category</em></MenuItem>
+                                        {categories.map((cat) => (
+                                            <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                                        ))}
+                                    </Select>
+                                    {isEditing && !!localError && !editFormState.category_id && <FormHelperText>Category is required.</FormHelperText>}
+                                </FormControl>
+                            </Grid>
+                            {/* Price */}
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    label="Price"
+                                    fullWidth
+                                    required
+                                    value={displayData.price ?? ''}
+                                    onChange={handleInputChange('price')}
+                                    disabled={!isEditing || isSaving}
+                                    InputProps={{ readOnly: !isEditing }}
+                                    variant={isEditing ? "outlined" : "standard"}
+                                    error={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price)))}
+                                    helperText={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price))) ? 'Valid number required' : ''}
+                                    type="text"
+                                />
+                            </Grid>
+                            {/* Description */}
+                            <Grid item xs={12}>
+                                <TextField
+                                    label="Description"
+                                    fullWidth
+                                    multiline
+                                    rows={3}
+                                    value={displayData.description ?? ''}
+                                    onChange={handleInputChange('description')}
+                                    disabled={!isEditing || isSaving}
+                                    InputProps={{ readOnly: !isEditing }}
+                                    variant={isEditing ? "outlined" : "standard"}
+                                />
+                            </Grid>
+                            {/* Status (Is Active) */}
+                            <Grid item xs={12}>
+                                <FormControlLabel 
+                                    control={<Switch 
+                                        checked={displayData.is_active ?? true} 
+                                        onChange={handleActiveChange}
+                                        disabled={!isEditing || isSaving}
+                                    />} 
+                                    label={(displayData.is_active ?? true) ? "Active" : "Disabled"}
+                                 />
+                            </Grid>
+                        </Grid>
                     </Grid>
                 </Grid>
             </DialogContent>
