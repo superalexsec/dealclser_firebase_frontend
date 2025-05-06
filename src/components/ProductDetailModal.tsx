@@ -25,9 +25,13 @@ import {
     Edit as EditIcon,
     Save as SaveIcon,
     Cancel as CancelIcon,
+    DeleteForever as DeleteForeverIcon,
+    AddPhotoAlternate as AddPhotoAlternateIcon,
 } from '@mui/icons-material';
-import { Product, Category, ProductUpdate } from '../lib/api'; // Import necessary types
+import { Product, Category, ProductUpdate, addProductImage, deleteProductImage } from '../lib/api'; // Import necessary types and new API functions
 import { SelectChangeEvent } from '@mui/material/Select';
+import { useMutation, useQueryClient } from '@tanstack/react-query'; // Import useMutation and useQueryClient
+import { useAuth } from '../contexts/AuthContext'; // Import useAuth to get token
 
 // Import react-slick
 import Slider from "react-slick";
@@ -48,50 +52,100 @@ interface ProductDetailModalProps {
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ 
     open, 
     onClose, 
-    product, 
+    product: initialProduct, // Rename to avoid conflict with local state
     categories, 
     onSave, 
-    isSaving, 
-    saveError, 
-    onDelete, // Destructure onDelete
+    isSaving: isSavingTextData, // Rename for clarity
+    saveError: textDataSaveError, // Rename for clarity
+    onDelete: onDeleteProduct, // Rename for clarity
 }) => {
+    const { token } = useAuth(); // Get auth token
+    const queryClient = useQueryClient(); // For cache updates
+
     const [isEditing, setIsEditing] = useState(false);
-    // Initialize with partial to avoid errors before useEffect runs
-    const [editFormState, setEditFormState] = useState<Partial<ProductUpdate>>({}); 
+    const [editFormState, setEditFormState] = useState<Partial<ProductUpdate>>({});
     const [localError, setLocalError] = useState<string | null>(null);
 
-    // Effect to initialize/reset form state when product or open status changes
+    // Local state for the product, which can be updated by image operations
+    const [currentProduct, setCurrentProduct] = useState<Product | null>(initialProduct);
+    const [imageOpError, setImageOpError] = useState<string | null>(null); // For errors from image add/delete
+
+    // Effect to reset local state when the initialProduct prop changes or dialog opens/closes
     useEffect(() => {
-        if (product && open) {
-            setIsEditing(false); // Default to view mode
+        setCurrentProduct(initialProduct);
+        setImageOpError(null);
+        if (initialProduct && open) {
+            setIsEditing(false);
             setLocalError(null);
             setEditFormState({
-                name: product.name || '',
-                description: product.description || '',
-                price: product.price || '', // String price
-                category_id: product.category_id || '',
-                is_active: product.is_active ?? true,
+                name: initialProduct.name || '',
+                description: initialProduct.description || '',
+                price: initialProduct.price || '',
+                category_id: initialProduct.category_id || '',
+                is_active: initialProduct.is_active ?? true,
             });
         } else if (!open) {
-            // Clear state completely when dialog closes
             setEditFormState({});
             setIsEditing(false);
             setLocalError(null);
         }
-    }, [product, open]);
+    }, [initialProduct, open]);
+
+    // Mutation for Adding an Image
+    const { mutate: addImageMutate, isPending: isAddingImage } = useMutation<Product, Error, { imageFile: File }>({
+        mutationFn: ({ imageFile }) => {
+            if (!currentProduct) throw new Error("Product context is lost for adding image.");
+            return addProductImage(currentProduct.id, imageFile, token);
+        },
+        onSuccess: (updatedProductData) => {
+            setCurrentProduct(updatedProductData);
+            queryClient.invalidateQueries({ queryKey: ['products', token] });
+            setImageOpError(null);
+        },
+        onError: (error: any) => {
+            console.error("Error adding image:", error);
+            setImageOpError(error.response?.data?.detail || error.message || "Failed to add image.");
+        },
+    });
+
+    // Mutation for Deleting an Image
+    const { mutate: deleteImageMutate, isPending: isDeletingImage } = useMutation<Product, Error, { imageUrl: string }>({
+        mutationFn: ({ imageUrl }) => {
+            if (!currentProduct) throw new Error("Product context is lost for deleting image.");
+            return deleteProductImage(currentProduct.id, imageUrl, token);
+        },
+        onSuccess: (updatedProductData) => {
+            setCurrentProduct(updatedProductData);
+            queryClient.invalidateQueries({ queryKey: ['products', token] });
+            setImageOpError(null);
+        },
+        onError: (error: any) => {
+            console.error("Error deleting image:", error);
+            setImageOpError(error.response?.data?.detail || error.message || "Failed to delete image.");
+        },
+    });
 
     const handleEditToggle = () => {
         const wasEditing = isEditing;
         setIsEditing(!isEditing);
         setLocalError(null); 
-        // If cancelling edit, reset form to original product values
-        if (wasEditing && product) {
-            setEditFormState({
-                name: product.name || '',
-                description: product.description || '',
-                price: product.price || '',
-                category_id: product.category_id || '',
-                is_active: product.is_active ?? true,
+        setImageOpError(null);
+        if (wasEditing && initialProduct) { 
+             setCurrentProduct(initialProduct); 
+             setEditFormState({
+                name: initialProduct.name || '',
+                description: initialProduct.description || '',
+                price: initialProduct.price || '',
+                category_id: initialProduct.category_id || '',
+                is_active: initialProduct.is_active ?? true,
+            });
+        } else if (!isEditing && currentProduct) { 
+             setEditFormState({ 
+                name: currentProduct.name || '',
+                description: currentProduct.description || '',
+                price: currentProduct.price || '',
+                category_id: currentProduct.category_id || '',
+                is_active: currentProduct.is_active ?? true,
             });
         }
     };
@@ -111,47 +165,77 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         setEditFormState(prev => ({ ...prev, is_active: event.target.checked }));
     };
 
-    const handleSave = () => {
+    const handleSaveTextChanges = async () => {
         setLocalError(null);
-        // Validate required fields in the current edit state
-        if (!editFormState.name?.trim() || !editFormState.price?.trim() || !editFormState.category_id) {
+        if (!editFormState.name?.trim() || !editFormState.price?.toString().trim() || !editFormState.category_id) {
             setLocalError('Name, Price, and Category are required.');
             return;
         }
-        // Validate price is a valid number string
-        if (isNaN(parseFloat(editFormState.price))) { 
+        if (isNaN(parseFloat(editFormState.price as string))) { 
             setLocalError('Please enter a valid number for Price (e.g., 10.99).');
             return;
         }
-
-        // Construct the update payload from editFormState
         const updateData: ProductUpdate = {
              name: editFormState.name.trim(),
              description: editFormState.description?.trim() || null,
-             price: editFormState.price.trim(), // Send trimmed string
+             price: editFormState.price.toString().trim(), 
              category_id: editFormState.category_id,
-             is_active: editFormState.is_active ?? true, // Ensure boolean
+             is_active: editFormState.is_active ?? true,
         };
-        
-        if (product) {
-            onSave(product.id, updateData);
+        if (currentProduct) {
+            try {
+                await onSave(currentProduct.id, updateData);
+            } catch (error) {
+                 console.error("Error saving text data via onSave prop:", error);
+            }
         } else {
             setLocalError("Cannot save, original product data is missing.");
         }
     };
 
-    const handleConfirmDelete = () => {
-        if (!product) return;
+    const handleImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setImageOpError(null);
+        if (!currentProduct) {
+            setImageOpError("Product data not loaded, cannot add image.");
+            return;
+        }
+        const files = event.target.files;
+        if (files && files.length > 0) {
+            const currentImageCount = currentProduct.image_urls?.length || 0;
+            const availableSlots = 3 - currentImageCount;
+            if (files.length > availableSlots) {
+                setImageOpError(`Cannot upload ${files.length} images. Only ${availableSlots} slot(s) available (max 3 images).`);
+                event.target.value = ''; 
+                return;
+            }
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file.type.startsWith('image/')) {
+                    setImageOpError(`File "${file.name}" is not a valid image type.`);
+                    continue; 
+                }
+                addImageMutate({ imageFile: file });
+            }
+            event.target.value = ''; 
+        }
+    };
 
-        // Simple browser confirmation
-        if (window.confirm(`Are you sure you want to delete the product "${product.name}"? This action cannot be undone.`)) {
-            console.log(`Confirmed deletion for product: ${product.id}`);
-            onDelete(product.id);
+    const handleDeleteImage = (imageUrlToDelete: string) => {
+        setImageOpError(null);
+        if (window.confirm("Are you sure you want to delete this image?")) {
+            deleteImageMutate({ imageUrl: imageUrlToDelete });
+        }
+    };
+
+    const handleFullProductDelete = () => {
+        if (!currentProduct) return;
+        if (window.confirm(`Are you sure you want to delete the product "${currentProduct.name}"? This action cannot be undone.`)) {
+            onDeleteProduct(currentProduct.id);
         }
     };
 
     // Handle case where dialog is open but product is missing
-    if (open && !product) {
+    if (open && !currentProduct) {
          return (
              <Dialog open={open} onClose={onClose}>
                  <DialogTitle>Error</DialogTitle>
@@ -161,17 +245,17 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
          );
     }
     // If closed or product is loading, render nothing (or a loader if preferred)
-    if (!open || !product) {
+    if (!open || !currentProduct) {
         return null; 
     }
 
     // Now we know product is not null, determine data source for display
-    const displayData = isEditing ? editFormState : product;
+    const displayData = isEditing ? editFormState : currentProduct;
 
     // Carousel settings (adjust as needed)
     const carouselSettings = {
         dots: true,
-        infinite: product.image_urls && product.image_urls.length > 1, // Only loop if multiple images
+        infinite: currentProduct.image_urls && currentProduct.image_urls.length > 1, // Only loop if multiple images
         speed: 500,
         slidesToShow: 1,
         slidesToScroll: 1,
@@ -179,77 +263,86 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         adaptiveHeight: true // Adjust height to slide content
     };
 
+    const isOverallSaving = isSavingTextData || isAddingImage || isDeletingImage;
+
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" /* Use wider modal for layout */ fullWidth>
-            <DialogTitle>{isEditing ? 'Edit Product' : 'Product Details'}</DialogTitle>
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+            <DialogTitle>
+                {isEditing ? 'Edit Product' : 'Product Details'}
+                {isOverallSaving && <CircularProgress size={20} sx={{ ml: 2 }} />}
+            </DialogTitle>
             <DialogContent dividers>
-                {(localError || saveError) && (
-                    <Alert severity="error" sx={{ mb: 2 }}>{localError || saveError}</Alert>
+                {(localError || textDataSaveError || imageOpError) && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        {localError || textDataSaveError || imageOpError}
+                    </Alert>
                 )}
-                {/* Use Grid layout: Image/Carousel on left, details on right */}
                 <Grid container spacing={3} sx={{ mt: 1 }}>
-                    {/* Image Section (Carousel or Single Image) */}
-                    <Grid item xs={12} md={6}> {/* Takes half width on medium screens and up */}
-                        {product.image_urls && product.image_urls.length > 1 ? (
-                             <Box sx={{ mb: 2, '.slick-prev:before, .slick-next:before': { color: 'grey' } }}> {/* Style arrows */}
+                    <Grid item xs={12} md={isEditing ? 12 : 6}> 
+                        {currentProduct.image_urls && currentProduct.image_urls.length > 0 ? (
+                            <Box sx={{ mb: 2, '.slick-prev:before, .slick-next:before': { color: 'grey' } }}>
                                 <Slider {...carouselSettings}>
-                                    {product.image_urls.map((url, index) => (
-                                        <Box key={index} component="div"> {/* Slider needs div */}
+                                    {currentProduct.image_urls.map((url, index) => (
+                                        <Box key={index} component="div" sx={{ position: 'relative' }}>
                                             <Box 
                                                 component="img"
                                                 src={url}
-                                                alt={`${product.name} - ${index + 1}`}
+                                                alt={`${currentProduct.name} - Image ${index + 1}`}
                                                 sx={{ 
-                                                    width: '100%', 
-                                                    height: 'auto', // Auto height to maintain aspect ratio
-                                                    maxHeight: '400px', // Limit max height
-                                                    objectFit: 'contain', 
-                                                    display: 'block', // Prevent extra space below img
-                                                    margin: '0 auto' // Center image if needed
+                                                    width: '100%', height: 'auto', maxHeight: '400px', 
+                                                    objectFit: 'contain', display: 'block', margin: '0 auto'
                                                 }}
                                             />
+                                            {isEditing && (
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => handleDeleteImage(url)}
+                                                    disabled={isDeletingImage || isAddingImage}
+                                                    sx={{
+                                                        position: 'absolute', top: 8, right: 8,
+                                                        backgroundColor: 'rgba(255,255,255,0.7)',
+                                                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' }
+                                                    }}
+                                                >
+                                                    <DeleteForeverIcon color="error" />
+                                                </IconButton>
+                                            )}
                                         </Box>
                                     ))}
                                 </Slider>
                             </Box>
-                        ) : product.image_urls && product.image_urls.length === 1 ? (
-                            // Single Image
-                             <Box 
-                                component="img"
-                                src={product.image_urls[0]}
-                                alt={product.name}
-                                sx={{ 
-                                    width: '100%', 
-                                    height: 'auto',
-                                    maxHeight: '400px',
-                                    objectFit: 'contain', 
-                                    display: 'block', 
-                                    mb: 2 
-                                }}
-                            />
                         ) : (
-                            // No Image Placeholder
-                            <Box sx={{ 
-                                height: 200, // Or adjust height
-                                width: '100%', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                backgroundColor: 'grey.200',
-                                borderRadius: 1,
-                                mb: 2 
-                            }}> 
-                                <Typography variant="caption" color="text.secondary">
-                                    No Image Available
+                            <Box sx={{ height: 200, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'grey.200', borderRadius: 1, mb: 2 }}>
+                                <Typography variant="caption" color="text.secondary">No Image Available</Typography>
+                            </Box>
+                        )}
+                        {isEditing && (
+                            <Box mt={2}>
+                                <Button
+                                    variant="outlined"
+                                    component="label"
+                                    startIcon={<AddPhotoAlternateIcon />}
+                                    disabled={isAddingImage || isDeletingImage || (currentProduct.image_urls?.length || 0) >= 3}
+                                >
+                                    Add Image(s)
+                                    <input
+                                        type="file"
+                                        hidden
+                                        multiple
+                                        accept="image/*"
+                                        onChange={handleImageFileChange}
+                                    />
+                                </Button>
+                                <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                                    Max 3 images. {(currentProduct.image_urls?.length || 0)} currently uploaded.
                                 </Typography>
                             </Box>
                         )}
                     </Grid>
 
-                    {/* Details Section */}
-                    <Grid item xs={12} md={6}> {/* Takes other half width */}
+                    {/* Details Section - Text Fields */}
+                    <Grid item xs={12} md={isEditing ? 12 : 6}>
                         <Grid container spacing={2}>
-                            {/* Name */}
                             <Grid item xs={12}>
                                 <TextField
                                     label="Product Name"
@@ -257,18 +350,17 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                     required
                                     value={displayData.name ?? ''}
                                     onChange={handleInputChange('name')}
-                                    disabled={!isEditing || isSaving}
+                                    disabled={!isEditing || isOverallSaving}
                                     InputProps={{ readOnly: !isEditing }}
                                     variant={isEditing ? "outlined" : "standard"}
                                     error={isEditing && !!localError && !editFormState.name?.trim()}
                                 />
                             </Grid>
-                            {/* Category */}
                             <Grid item xs={12} sm={6}>
-                                 <FormControl fullWidth required error={isEditing && !!localError && !editFormState.category_id} disabled={!isEditing || isSaving}>
-                                    <InputLabel id={`category-select-label-${product.id}`}>Category</InputLabel>
+                                 <FormControl fullWidth required error={isEditing && !!localError && !editFormState.category_id} disabled={!isEditing || isOverallSaving}>
+                                    <InputLabel id={`category-select-label-${currentProduct.id}`}>Category</InputLabel>
                                     <Select
-                                        labelId={`category-select-label-${product.id}`}
+                                        labelId={`category-select-label-${currentProduct.id}`}
                                         value={displayData.category_id ?? ''}
                                         label="Category"
                                         onChange={handleCategoryChange}
@@ -282,7 +374,6 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                     {isEditing && !!localError && !editFormState.category_id && <FormHelperText>Category is required.</FormHelperText>}
                                 </FormControl>
                             </Grid>
-                            {/* Price */}
                             <Grid item xs={12} sm={6}>
                                 <TextField
                                     label="Price"
@@ -290,15 +381,14 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                     required
                                     value={displayData.price ?? ''}
                                     onChange={handleInputChange('price')}
-                                    disabled={!isEditing || isSaving}
+                                    disabled={!isEditing || isOverallSaving}
                                     InputProps={{ readOnly: !isEditing }}
                                     variant={isEditing ? "outlined" : "standard"}
-                                    error={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price)))}
-                                    helperText={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price))) ? 'Valid number required' : ''}
+                                    error={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price as string)))}
+                                    helperText={isEditing && !!localError && (!editFormState.price || isNaN(parseFloat(editFormState.price as string))) ? 'Valid number required' : ''}
                                     type="text"
                                 />
                             </Grid>
-                            {/* Description */}
                             <Grid item xs={12}>
                                 <TextField
                                     label="Description"
@@ -307,18 +397,17 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                     rows={3}
                                     value={displayData.description ?? ''}
                                     onChange={handleInputChange('description')}
-                                    disabled={!isEditing || isSaving}
+                                    disabled={!isEditing || isOverallSaving}
                                     InputProps={{ readOnly: !isEditing }}
                                     variant={isEditing ? "outlined" : "standard"}
                                 />
                             </Grid>
-                            {/* Status (Is Active) */}
                             <Grid item xs={12}>
                                 <FormControlLabel 
                                     control={<Switch 
                                         checked={displayData.is_active ?? true} 
                                         onChange={handleActiveChange}
-                                        disabled={!isEditing || isSaving}
+                                        disabled={!isEditing || isOverallSaving}
                                     />} 
                                     label={(displayData.is_active ?? true) ? "Active" : "Disabled"}
                                  />
@@ -327,39 +416,19 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </Grid>
                 </Grid>
             </DialogContent>
-            <DialogActions sx={{ padding: '16px 24px' }}> { /* Add padding */ }
-                 {/* Toggle Edit/Cancel */}
-                 <Button 
-                    onClick={handleEditToggle} 
-                    disabled={isSaving} // Disable if saving
-                 >
+            <DialogActions sx={{ padding: '16px 24px' }}>
+                 <Button onClick={handleEditToggle} disabled={isOverallSaving}>
                     {isEditing ? 'Cancel' : 'Edit'}
                 </Button>
-
-                {/* Delete Button - Show always for simplicity, or only in edit mode */}
-                <Button 
-                    color="error" 
-                    variant="outlined"
-                    onClick={handleConfirmDelete}
-                    disabled={isSaving} // Disable if saving
-                    sx={{ marginRight: 'auto' }} // Push other buttons to the right
-                >
+                <Button color="error" variant="outlined" onClick={handleFullProductDelete} disabled={isOverallSaving || (isEditing && (isAddingImage || isDeletingImage))} sx={{ marginRight: 'auto' }}>
                     Delete Product
                 </Button>
-
-                {/* Show Save only when editing, otherwise show Close */}
                  {isEditing ? (
-                     <Button 
-                        onClick={handleSave} 
-                        variant="contained"
-                        disabled={isSaving} // Disable if saving
-                    >
-                        {isSaving ? 'Saving...' : 'Save Changes'}
+                     <Button onClick={handleSaveTextChanges} variant="contained" disabled={isSavingTextData || isAddingImage || isDeletingImage}>
+                        {isSavingTextData ? 'Saving Text...' : 'Save Text Changes'}
                     </Button>
                  ) : (
-                    <Button onClick={onClose} disabled={isSaving}>
-                        Close
-                    </Button>
+                    <Button onClick={onClose} disabled={isOverallSaving}>Close</Button>
                  )}
             </DialogActions>
         </Dialog>

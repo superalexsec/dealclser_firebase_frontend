@@ -539,6 +539,39 @@ export const deleteProduct = async (productId: string, token: string | null): Pr
     // No return value needed as per 204 No Content.
 };
 
+// --- NEW: API function to add an image to a product ---
+export const addProductImage = async (productId: string, imageFile: File, token: string | null): Promise<Product> => {
+    if (!token) throw new Error('Authentication token is required to add an image.');
+    if (!productId) throw new Error('Product ID is required to add an image.');
+    if (!imageFile) throw new Error('Image file is required.');
+
+    const formData = new FormData();
+    formData.append('image', imageFile, imageFile.name);
+
+    // Interceptor handles Authorization header. Axios handles Content-Type for FormData.
+    const { data } = await apiClient.post<Product>(`/products-api/products/${productId}/images`, formData, {
+        headers: { Authorization: `Bearer ${token}` } // Explicit token for clarity, though interceptor helps
+    });
+    return data; // Backend returns the updated product object
+};
+
+// --- NEW: API function to delete an image from a product ---
+export const deleteProductImage = async (productId: string, imageUrl: string, token: string | null): Promise<Product> => {
+    if (!token) throw new Error('Authentication token is required to delete an image.');
+    if (!productId) throw new Error('Product ID is required to delete an image.');
+    if (!imageUrl) throw new Error('Image URL is required for deletion.');
+
+    // Interceptor handles Authorization header.
+    const { data } = await apiClient.delete<Product>(`/products-api/products/${productId}/images`, {
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        data: { image_url: imageUrl }, // Axios uses 'data' field for DELETE request body
+    });
+    return data; // Backend returns the updated product object
+};
+
 // --- Cart Types (Based on Backend API Spec) ---
 
 // Interface for the response from cart actions (add, remove, clear, checkout)
