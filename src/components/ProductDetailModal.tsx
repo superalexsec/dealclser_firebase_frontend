@@ -42,6 +42,7 @@ interface ProductDetailModalProps {
     onSave: (productId: string, productData: ProductUpdate) => Promise<void>; // Function to call on save
     isSaving: boolean; // Prop to indicate saving state
     saveError: string | null; // Prop to show save error
+    onDelete: (productId: string) => void; // Add onDelete prop
 }
 
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ 
@@ -51,7 +52,8 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     categories, 
     onSave, 
     isSaving, 
-    saveError 
+    saveError, 
+    onDelete, // Destructure onDelete
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     // Initialize with partial to avoid errors before useEffect runs
@@ -135,6 +137,16 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             onSave(product.id, updateData);
         } else {
             setLocalError("Cannot save, original product data is missing.");
+        }
+    };
+
+    const handleConfirmDelete = () => {
+        if (!product) return;
+
+        // Simple browser confirmation
+        if (window.confirm(`Are you sure you want to delete the product "${product.name}"? This action cannot be undone.`)) {
+            console.log(`Confirmed deletion for product: ${product.id}`);
+            onDelete(product.id);
         }
     };
 
@@ -315,22 +327,39 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </Grid>
                 </Grid>
             </DialogContent>
-            <DialogActions>
-                 {/* Toggle Edit/Cancel */} 
-                 <Button onClick={handleEditToggle} disabled={isSaving}>
+            <DialogActions sx={{ padding: '16px 24px' }}> { /* Add padding */ }
+                 {/* Toggle Edit/Cancel */}
+                 <Button 
+                    onClick={handleEditToggle} 
+                    disabled={isSaving} // Disable if saving
+                 >
                     {isEditing ? 'Cancel' : 'Edit'}
                 </Button>
-                {/* Show Save only when editing, otherwise show Close */} 
+
+                {/* Delete Button - Show always for simplicity, or only in edit mode */}
+                <Button 
+                    color="error" 
+                    variant="outlined"
+                    onClick={handleConfirmDelete}
+                    disabled={isSaving} // Disable if saving
+                    sx={{ marginRight: 'auto' }} // Push other buttons to the right
+                >
+                    Delete Product
+                </Button>
+
+                {/* Show Save only when editing, otherwise show Close */}
                  {isEditing ? (
                      <Button 
                         onClick={handleSave} 
                         variant="contained"
-                        disabled={isSaving} // Disable while saving
+                        disabled={isSaving} // Disable if saving
                     >
                         {isSaving ? 'Saving...' : 'Save Changes'}
                     </Button>
                  ) : (
-                    <Button onClick={onClose}>Close</Button>
+                    <Button onClick={onClose} disabled={isSaving}>
+                        Close
+                    </Button>
                  )}
             </DialogActions>
         </Dialog>

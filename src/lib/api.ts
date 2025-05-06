@@ -404,9 +404,8 @@ export interface ProductListResponse {
  * Fetches available product categories for the tenant.
  */
 export const fetchCategories = async (token: string | null): Promise<CategoriesResponse> => {
-  if (!token) throw new Error('Authentication token is required.');
-  const config = { headers: { Authorization: `Bearer ${token}` } };
-  // Assuming categories endpoint is /products-api/categories/
+  if (!token) throw new Error('Authentication token is required to fetch categories.');
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
   const { data } = await apiClient.get<CategoriesResponse>('/products-api/categories/', config);
   return data;
 };
@@ -419,32 +418,26 @@ export const fetchProducts = async (
   page: number = 1,
   categoryId?: string | null
 ): Promise<ProductListResponse> => {
-    if (!token) throw new Error('Authentication token is required.');
-    // Define params ensuring category_id is only added if present
-    const params: Record<string, any> = {
-        page: page,
-        size: 12, // Example page size
-    };
+    if (!token) throw new Error('Authentication token is required to fetch products.');
+    
+    const params: Record<string, any> = { page };
     if (categoryId) {
         params.category_id = categoryId;
     }
     
-    // Define config with headers and params
-    const config = {
+    const config = { 
         headers: { Authorization: `Bearer ${token}` },
-        params: params
+        params // Add params to the config
     };
-    
-    // Ensure the URL is correct, e.g., /products-api/products/
+
     const { data } = await apiClient.get<ProductListResponse>('/products-api/products/', config);
     return data;
 };
 
 // API function to create a Category
 export const createCategory = async (categoryData: CategoryCreate, token: string | null): Promise<Category> => {
-  if (!token) throw new Error('Authentication token is required.');
-  const config = { headers: { Authorization: `Bearer ${token}` } };
-  // Assuming create category endpoint is /products-api/categories/
+  if (!token) throw new Error('Authentication token is required to create a category.');
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
   const { data } = await apiClient.post<Category>('/products-api/categories/', categoryData, config);
   return data;
 };
@@ -465,18 +458,19 @@ export const createProduct = async (
     files: File[] | null, // Accept files
     token: string | null
 ): Promise<Product> => {
-    if (!token) throw new Error('Authentication token is required.');
+    if (!token) throw new Error('Authentication token is required to create a product.');
 
     const formData = new FormData();
-
+    
     // 1. Create metadata object (ensure all needed fields are included)
+    //    This structure must match what the backend /products-api/products/ POST endpoint expects for metadata.
     const metadata = {
         name: productData.name,
         description: productData.description,
         price: productData.price,
         category_id: productData.category_id,
         sku: productData.sku,
-        is_active: productData.is_active,
+        is_active: productData.is_active !== undefined ? productData.is_active : true, // Default to true if undefined
     };
 
     // 2. Stringify the metadata object
@@ -488,33 +482,19 @@ export const createProduct = async (
     // 4. Append files as before
     if (files && files.length > 0) {
         files.forEach(file => {
-            formData.append('files', file, file.name);
+            formData.append('files', file, file.name); // Backend expects 'files' and might use original file name
         });
     }
-
-    // --- DEBUGGING: Log FormData entries before sending --- 
-    console.log("--- FormData Entries Before Sending ---");
-    formData.forEach((value, key) => {
-        if (value instanceof File) {
-            console.log(`${key}: [File] ${value.name}, Type: ${value.type}, Size: ${value.size}`);
-        } else {
-            console.log(`${key}: ${value}`);
-        }
+    
+    // The interceptor will add the Authorization header.
+    // Content-Type will be set to multipart/form-data by Axios automatically for FormData.
+    const { data } = await apiClient.post<Product>('/products-api/products/', formData, {
+         headers: {
+             Authorization: `Bearer ${token}`,
+             // 'Content-Type': 'multipart/form-data' // Axios sets this automatically for FormData
+         }
     });
-    console.log("---------------------------------------");
-    // --- END DEBUGGING --- 
-
-    // Make the POST request with FormData
-    const config = {
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            // Content-Type is set automatically by browser/axios for FormData
-        }
-    };
-
-    // Ensure the endpoint /products-api/products/ is correct
-    const response = await apiClient.post<Product>('/products-api/products/', formData, config);
-    return response.data;
+    return data;
 };
 
 // --- NEW: Type for updating a Product ---
@@ -531,13 +511,32 @@ export interface ProductUpdate {
 // --- NEW: API function to update a Product ---
 // Assuming PUT request to /products-api/products/{product_id}/
 export const updateProduct = async (productId: string, productData: ProductUpdate, token: string | null): Promise<Product> => {
-  if (!token) throw new Error('Authentication token is required.');
-  if (!productId) throw new Error('Product ID is required for update.');
+  if (!token) throw new Error('Authentication token is required to update a product.');
+  if (!productId) throw new Error('Product ID is required to update a product.');
 
   const config = { headers: { Authorization: `Bearer ${token}` } };
   // Ensure the endpoint is correct: /products-api/products/{product_id}
   const { data } = await apiClient.put<Product>(`/products-api/products/${productId}`, productData, config);
   return data;
+};
+
+// --- NEW: API function to delete a Product ---
+export const deleteProduct = async (productId: string, token: string | null): Promise<void> => {
+    if (!token) { // Rely on interceptor for actual auth failure, but good for early exit
+        throw new Error('Authentication token is required to delete a product.');
+    }
+    if (!productId) {
+        throw new Error('Product ID is required to delete a product.');
+    }
+    
+    // Axios interceptor adds the Authorization header.
+    // The endpoint is /products-api/products/{product_id}
+    // A successful DELETE will return a 204 No Content. Axios handles this by
+    // not attempting to parse response.data, which will be null or undefined.
+    await apiClient.delete(`/products-api/products/${productId}`, {
+        headers: { Authorization: `Bearer ${token}` } // Explicitly pass for clarity, though interceptor does it
+    });
+    // No return value needed as per 204 No Content.
 };
 
 // --- Cart Types (Based on Backend API Spec) ---

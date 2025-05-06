@@ -27,6 +27,7 @@ import {
     createCategory,
     createProduct,
     updateProduct,
+    deleteProduct,
     ProductListResponse,
     Category,
     Product,
@@ -174,6 +175,35 @@ const ProductsCatalogPage: React.FC = () => {
    const isUpdatingProduct = false; // Placeholder
    const updateProductError: Error | null = null; // Placeholder
 
+    // Mutation for Deleting Product
+    const { 
+        mutate: deleteProductMutate, 
+        isPending: isDeletingProduct 
+    } = useMutation<void, Error, string>({ // Takes productId (string) as input
+        mutationFn: (productId) => deleteProduct(productId, token),
+        onSuccess: () => {
+            // Invalidate ALL product queries to be safe, or target specific pages
+            queryClient.invalidateQueries({ queryKey: ['products', token] });
+            setSnackbarMessage('Product deleted successfully!');
+            setShowSuccessSnackbar(true);
+            handleCloseDetailModal(); // Close the modal after successful deletion
+        },
+        onError: (error: any) => { // Change error type to any to inspect response
+            console.error("Error deleting product:", error);
+            let message = "Failed to delete product. Please try again."; // Default message
+            if (error.response && error.response.data && error.response.data.detail) {
+                // If backend sends a specific detail message (e.g., for 404)
+                message = error.response.data.detail;
+            } else if (error.message) {
+                // General error (network issue, etc.)
+                message = error.message;
+            }
+            setErrorSnackbarMessage(message);
+            setShowErrorSnackbar(true);
+            // Modal will stay open due to error, which is usually good UX for deletion errors.
+        },
+    });
+
     // Wrapper function for AddCategoryDialog onSave prop
     const handleSaveCategory = async (categoryData: CategoryCreate): Promise<void> => {
         return new Promise((resolve, reject) => {
@@ -270,6 +300,13 @@ const ProductsCatalogPage: React.FC = () => {
         console.warn('Product update/delete functionality not fully implemented yet.');
         // In a real implementation, you would call updateProductMutate here
         return Promise.resolve(); 
+    };
+
+    // Handler function to trigger delete mutation (passed to modal)
+    const handleDeleteProduct = (productId: string) => {
+        console.log(`Attempting to delete product: ${productId}`);
+        // Confirmation happens inside the modal now
+        deleteProductMutate(productId); 
     };
 
     return (
@@ -435,12 +472,11 @@ const ProductsCatalogPage: React.FC = () => {
                     open={isDetailModalOpen} 
                     onClose={handleCloseDetailModal} 
                     product={selectedProduct} 
-                    // Pass required props:
-                    categories={categories} // Pass fetched categories
-                    onSave={handleSaveProductUpdate} // Pass placeholder update handler
-                    isSaving={isUpdatingProduct} // Pass placeholder saving state
-                    // Pass null directly to avoid persistent linter error on placeholder
+                    categories={categories}
+                    onSave={handleSaveProductUpdate}
+                    isSaving={isUpdatingProduct} // Still using placeholder for update saving state
                     saveError={null} 
+                    onDelete={handleDeleteProduct} // Pass delete handler
                 />
             )}
 
