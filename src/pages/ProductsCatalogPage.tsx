@@ -149,31 +149,31 @@ const ProductsCatalogPage: React.FC = () => {
         },
     });
 
-    // Mutation for Updating Product (Keep commented out unless implementing update logic)
-    /*
+    // Mutation for Updating Product
     const { 
         mutate: updateProductMutate, 
-        isPending: isUpdatingProduct, 
-        error: updateProductError 
+        isPending: isUpdatingProductReal, 
+        error: updateProductErrorReal 
     } = useMutation<Product, Error, { productId: string; productData: ProductUpdate }>({
         mutationFn: ({ productId, productData }) => updateProduct(productId, productData, token),
         onSuccess: (updatedProduct) => {
-             // Invalidate queries to refetch potentially changed product lists
-             queryClient.invalidateQueries({ queryKey: ['products', token] }); // Invalidate all product pages
+             queryClient.invalidateQueries({ queryKey: ['products', token] });
              setSnackbarMessage(`Product "${updatedProduct.name}" updated successfully!`);
              setShowSuccessSnackbar(true);
-             setIsDetailModalOpen(false); // Close modal on successful update
-             setSelectedProduct(null); // Clear selection
+             handleCloseDetailModal(); 
         },
-        onError: (error) => {
+        onError: (error: any) => { 
              console.error("Error updating product:", error);
-              // Error state is passed to modal
+             let message = "Failed to update product. Please try again."; 
+            if (error.response && error.response.data && error.response.data.detail) {
+                message = error.response.data.detail;
+            } else if (error.message) {
+                message = error.message;
+            }
+            setErrorSnackbarMessage(message); 
+            setShowErrorSnackbar(true); 
         },
     });
-    */
-   // Placeholder state/values for ProductDetailModal update props
-   const isUpdatingProduct = false; // Placeholder
-   const updateProductError: Error | null = null; // Placeholder
 
     // Mutation for Deleting Product
     const { 
@@ -295,11 +295,18 @@ const ProductsCatalogPage: React.FC = () => {
     // Determine loading state for initial load vs subsequent loads
     const isInitialLoading = isLoadingProducts && currentPage === 1;
 
-    // Placeholder function for ProductDetailModal onSave prop
+    // Implement the function for ProductDetailModal onSave prop
     const handleSaveProductUpdate = async (productId: string, productData: ProductUpdate): Promise<void> => {
-        console.warn('Product update/delete functionality not fully implemented yet.');
-        // In a real implementation, you would call updateProductMutate here
-        return Promise.resolve(); 
+        return new Promise((resolve, reject) => {
+            updateProductMutate({ productId, productData }, {
+                onSuccess: () => {
+                    resolve();
+                },
+                onError: (error) => {
+                    reject(error); 
+                }
+            });
+        });
     };
 
     // Handler function to trigger delete mutation (passed to modal)
@@ -474,8 +481,8 @@ const ProductsCatalogPage: React.FC = () => {
                     product={selectedProduct} 
                     categories={categories}
                     onSave={handleSaveProductUpdate}
-                    isSaving={isUpdatingProduct} // Still using placeholder for update saving state
-                    saveError={null} 
+                    isSaving={isUpdatingProductReal} // Use actual pending state from useMutation
+                    saveError={updateProductErrorReal ? (updateProductErrorReal as any)?.response?.data?.detail || updateProductErrorReal.message : null} // Pass actual error message
                     onDelete={handleDeleteProduct} // Pass delete handler
                 />
             )}
