@@ -676,5 +676,18 @@ export const checkoutCart = async (payload: CartActionPayload, token: string | n
     return response.data;
 };
 
-// --- Existing API Functions Continue Below ---
-// ... existing code ... 
+// --- NEW: API function to delete a Category ---
+export const deleteCategory = async (categoryId: string, token: string | null): Promise<void> => {
+    if (!token) {
+        throw new Error('Authentication token is required to delete a category.');
+    }
+    if (!categoryId) {
+        throw new Error('Category ID is required for deletion.');
+    }
+    // Assuming the endpoint is /products-api/categories/{category_id}/
+    // Similar to product deletion, a 204 No Content is expected on success.
+    await apiClient.delete(`/products-api/categories/${categoryId}/`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    // No return value needed for 204.
+}; 

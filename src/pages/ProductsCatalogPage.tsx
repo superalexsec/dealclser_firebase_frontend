@@ -33,11 +33,13 @@ import {
     Product,
     CategoryCreate,
     ProductCreate,
-    ProductUpdate
+    ProductUpdate,
+    deleteCategory,
 } from '../lib/api';
 import AddCategoryDialog from '../components/AddCategoryDialog';
 import AddProductDialog from '../components/AddProductDialog';
 import ProductDetailModal from '../components/ProductDetailModal';
+import ManageCategoriesDialog from '../components/ManageCategoriesDialog';
 
 // Interface combining product data and files for mutation
 interface ProductMutationPayload {
@@ -61,13 +63,14 @@ const ProductsCatalogPage: React.FC = () => {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false);
     const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
+    const [isManageCategoriesDialogOpen, setIsManageCategoriesDialogOpen] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState('');
     const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
     const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
     const [errorSnackbarMessage, setErrorSnackbarMessage] = useState('');
 
     // Fetch Categories
-    const { data: categories = [], isLoading: isLoadingCategories, error: categoriesError } = useQuery<Category[], Error>({
+    const { data: categories = [], isLoading: isLoadingCategories, error: categoriesError, refetch: refetchCategories } = useQuery<Category[], Error>({
         queryKey: ['categories', token],
         queryFn: () => fetchCategories(token),
         enabled: !!token,
@@ -119,7 +122,6 @@ const ProductsCatalogPage: React.FC = () => {
         },
         onError: (error) => {
             console.error("Error creating category:", error);
-            // Error state is passed to dialog
         },
     });
 
@@ -204,6 +206,26 @@ const ProductsCatalogPage: React.FC = () => {
         },
     });
 
+    // New Mutation for Deleting Category
+    const { mutate: deleteCategoryMutate, isPending: isDeletingCategory, error: deleteCategoryErrorHook } = useMutation<void, Error, string>({
+        mutationFn: (categoryId: string) => deleteCategory(categoryId, token),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['categories', token] });
+            // Also invalidate products as some might have become uncategorized or an orphaned category was used
+            queryClient.invalidateQueries({ queryKey: ['products', token] });
+            setSnackbarMessage('Category deleted successfully!');
+            setShowSuccessSnackbar(true);
+            // No need to close ManageCategoriesDialog here, list will update. Or close if preferred.
+        },
+        onError: (error: any) => {
+            console.error("Error deleting category:", error);
+            // Error message will be passed to ManageCategoriesDialog via deleteCategoryErrorHook.message
+            // Or show a snackbar here too:
+            setErrorSnackbarMessage(error.response?.data?.detail || error.message || "Failed to delete category.");
+            setShowErrorSnackbar(true);
+        },
+    });
+
     // Wrapper function for AddCategoryDialog onSave prop
     const handleSaveCategory = async (categoryData: CategoryCreate): Promise<void> => {
         return new Promise((resolve, reject) => {
@@ -258,12 +280,20 @@ const ProductsCatalogPage: React.FC = () => {
         setIsAddCategoryDialogOpen(false);
     };
 
-     const handleOpenAddProductDialog = () => {
+    const handleOpenAddProductDialog = () => {
         setIsAddProductDialogOpen(true);
     };
 
     const handleCloseAddProductDialog = () => {
         setIsAddProductDialogOpen(false);
+    };
+
+    const handleOpenManageCategoriesDialog = () => {
+        setIsManageCategoriesDialogOpen(true);
+    };
+
+    const handleCloseManageCategoriesDialog = () => {
+        setIsManageCategoriesDialogOpen(false);
     };
     
     const handleCloseSuccessSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => {
@@ -322,7 +352,7 @@ const ProductsCatalogPage: React.FC = () => {
 
             {/* Controls: Category Filter & Add Buttons */}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} justifyContent="space-between" alignItems="center">
-                <FormControl sx={{ minWidth: 200 }} size="small">
+                <FormControl sx={{ minWidth: 200, flexGrow: { xs: 1, sm: 0 } }} size="small">
                     <InputLabel id="category-select-label">Category</InputLabel>
                     <Select
                         labelId="category-select-label"
@@ -339,19 +369,27 @@ const ProductsCatalogPage: React.FC = () => {
                         ))}
                     </Select>
                 </FormControl>
-                <Stack direction="row" spacing={1}> 
+                <Stack direction="row" spacing={1} justifyContent={{xs: 'flex-start', sm: 'flex-end'}} flexWrap="wrap"> 
                     <Button 
                         variant="outlined" 
                         onClick={handleOpenAddCategoryDialog}
-                        disabled={isAddingCategory} // Disable if adding category
+                        disabled={isAddingCategory} 
                         size="small"
                     >
                         Add Category
                     </Button>
+                    <Button 
+                        variant="outlined" 
+                        onClick={handleOpenManageCategoriesDialog}
+                        size="small"
+                        sx={{ ml: 1 }}
+                    >
+                        Manage Categories
+                    </Button>
                      <Button 
                         variant="contained" 
                         onClick={handleOpenAddProductDialog}
-                        disabled={isAddingProduct || categories.length === 0} // Disable if adding or no categories
+                        disabled={isAddingProduct || categories.length === 0} 
                         size="small"
                     >
                         Add Product
@@ -462,6 +500,15 @@ const ProductsCatalogPage: React.FC = () => {
                 onSave={handleSaveCategory} 
                 isSaving={isAddingCategory}
                 saveError={addCategoryError?.message || null} 
+            />
+
+            <ManageCategoriesDialog
+                open={isManageCategoriesDialogOpen}
+                onClose={handleCloseManageCategoriesDialog}
+                categories={categories}
+                onDeleteCategory={deleteCategoryMutate}
+                isDeletingCategory={isDeletingCategory}
+                deleteCategoryError={deleteCategoryErrorHook?.message || (deleteCategoryErrorHook as any)?.response?.data?.detail || null}
             />
 
             <AddProductDialog 

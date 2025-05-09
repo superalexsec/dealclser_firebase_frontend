@@ -18,6 +18,7 @@ import Register from './pages/Register';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProductsCatalogPage from './pages/ProductsCatalogPage';
 import CartPage from './pages/CartPage';
+import PaymentPage from './pages/PaymentPage';
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App: React.FC = () => {
               {/* Public routes */}
               <Route path="/" element={<Landing />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/payments/:sessionId" element={<PaymentPage />} />
               
               {/* Protected routes */}
               <Route path="/dashboard" element={
