@@ -1,20 +1,45 @@
+Subject: New PayServ Endpoints for Tenant Payment Config (Pix Discount & Max Installments)
+
+Hi Tenants Team,
+
+We have added new endpoints to PayServ to allow you to get and update the Pix discount and max installments for each tenant's payment configuration. These endpoints are intended for internal use and do not require authentication from PayServ, as your backend will proxy requests and handle authentication.
+
 ---
 
-Subject: 405 Error on GET /payments/mercadopago-config – Request for Read Endpoint
+**Endpoints:**
 
-Hi Tenant Team,
+1. **Get Current Payment Config**
+   - **GET** `/v1/tenants/{tenant_id}/payment-config`
+   - **Response Example:**
+     ```json
+     {
+       "tenant_id": "44921cd3-2158-4dde-9551-084f020f3ee4",
+       "max_installments": 12,
+       "default_payment_methods": ["PIX", "CREDIT_CARD"],
+       "pix_discount": 4.0,
+       "created_at": "2024-06-10T12:00:00Z",
+       "updated_at": "2024-06-10T12:00:00Z"
+     }
+     ```
 
-We are encountering a 405 Method Not Allowed error when attempting to retrieve the current Mercado Pago configuration using a GET request to `/payments/mercadopago-config` as per the latest backend contract and documentation. 
+2. **Update Pix Discount and/or Max Installments**
+   - **PATCH** `/v1/tenants/{tenant_id}/payment-config`
+   - **Request Body (any or both fields):**
+     ```json
+     {
+       "pix_discount": 5.0,
+       "max_installments": 10
+     }
+     ```
+   - **Response:** Returns the updated config (same as GET response).
 
-Currently, the backend supports POST and PATCH for registering and updating the Mercado Pago configuration, but there is no documented GET endpoint for fetching the current configuration for a tenant. This is required for the frontend Settings page to display the current Mercado Pago settings and allow users to view or edit them.
+---
 
-**Request:**
-- Could you please clarify if a GET endpoint for `/payments/mercadopago-config` is available or planned?
-- If not, could you implement a GET endpoint that returns the current Mercado Pago configuration for the authenticated tenant, matching the response structure of the POST/PATCH endpoints?
+**Notes:**
+- You can update either `pix_discount`, `max_installments`, or both in a single PATCH request.
+- No authentication is required from PayServ; your backend should proxy and secure these endpoints.
 
-This will ensure the frontend can properly display and manage Mercado Pago settings for each tenant.
+Let us know if you need any changes or further integration!
 
-Thank you!
-
-Best regards,
-Frontend Team
+Best,
+Payment Service Team

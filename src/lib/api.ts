@@ -755,3 +755,34 @@ export const fetchPaymentSessionDetails = async (sessionId: string, token?: stri
   });
   return data;
 }; 
+
+// --- Payment Config Types and API ---
+export interface PaymentConfig {
+  tenant_id: string;
+  max_installments: number;
+  default_payment_methods: string[];
+  pix_discount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdatePaymentConfigPayload {
+  pix_discount?: number;
+  max_installments?: number;
+}
+
+export const fetchPaymentConfig = async (token?: string | null): Promise<PaymentConfig> => {
+  if (!token) throw new Error('Authentication token is required.');
+  const { data } = await apiClient.get<PaymentConfig>('/payments/payment-config', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return data;
+};
+
+export const updatePaymentConfig = async (updateData: UpdatePaymentConfigPayload, token?: string | null): Promise<PaymentConfig> => {
+  if (!token) throw new Error('Authentication token is required.');
+  const { data } = await apiClient.patch<PaymentConfig>('/payments/payment-config', updateData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return data;
+}; 

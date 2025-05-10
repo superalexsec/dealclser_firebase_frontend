@@ -29,6 +29,9 @@ import apiClient, {
     fetchMercadoPagoConfig,
     updateMercadoPagoConfig,
     MercadoPagoConfig,
+    fetchPaymentConfig,
+    updatePaymentConfig,
+    PaymentConfig,
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -64,6 +67,86 @@ function a11yProps(index: number) {
     'aria-controls': `settings-tabpanel-${index}`,
   };
 }
+
+const PixInstallmentsConfig: React.FC = () => {
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [pixDiscount, setPixDiscount] = useState<number | ''>('');
+  const [maxInstallments, setMaxInstallments] = useState<number | ''>('');
+  const [initial, setInitial] = useState<{ pix_discount: number; max_installments: number } | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    setLoading(true);
+    fetchPaymentConfig(token)
+      .then((data) => {
+        setPixDiscount(data.pix_discount);
+        setMaxInstallments(data.max_installments);
+        setInitial({ pix_discount: data.pix_discount, max_installments: data.max_installments });
+        setError(null);
+      })
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setError('Pix Discount & Max Installments configuration is not available (404). Please contact the backend team.');
+        } else {
+          setError(err.message || 'Failed to load payment config.');
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await updatePaymentConfig({
+        pix_discount: pixDiscount === '' ? undefined : pixDiscount,
+        max_installments: maxInstallments === '' ? undefined : maxInstallments,
+      }, token);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+      setInitial({ pix_discount: Number(pixDiscount), max_installments: Number(maxInstallments) });
+    } catch (err: any) {
+      setError(err.message || 'Failed to update payment config.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+      <TextField
+        label="Pix Discount (%)"
+        type="number"
+        value={pixDiscount}
+        onChange={e => setPixDiscount(e.target.value === '' ? '' : Number(e.target.value))}
+        helperText="Discount percentage for Pix payments (pix_discount)"
+        inputProps={{ min: 0, max: 100, step: 0.1 }}
+        sx={{ minWidth: 200 }}
+      />
+      <TextField
+        label="Max Installments"
+        type="number"
+        value={maxInstallments}
+        onChange={e => setMaxInstallments(e.target.value === '' ? '' : Number(e.target.value))}
+        helperText="Maximum number of installments allowed (max_installments)"
+        inputProps={{ min: 1, max: 36, step: 1 }}
+        sx={{ minWidth: 200 }}
+      />
+      <Button
+        variant="contained"
+        onClick={handleSave}
+        disabled={loading || (pixDiscount === initial?.pix_discount && maxInstallments === initial?.max_installments)}
+      >
+        {loading ? 'Saving...' : 'Save'}
+      </Button>
+      {success && <Alert severity="success">Pix Discount / Max Installments updated!</Alert>}
+      {error && <Alert severity="error">{error}</Alert>}
+    </Box>
+  );
+};
 
 const Settings = () => {
   const [tabValue, setTabValue] = useState(0);
@@ -394,104 +477,109 @@ const Settings = () => {
           {isLoadingMPConfig ? (
             <CircularProgress />
           ) : fetchMPError ? (
-            <Alert severity="error">Error loading Mercado Pago config: {fetchMPError.message}</Alert>
+            <Alert severity="error">{fetchMPError?.toString() || ''}</Alert>
           ) : (
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>
-                  Mercado Pago Configuration
-                </Typography>
-                {mpUpdateError && <Alert severity="error" sx={{ mb: 2 }}>{mpUpdateError}</Alert>}
-                {mpUpdateSuccess && <Alert severity="success" sx={{ mb: 2 }}>Settings updated successfully!</Alert>}
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Public Key"
-                  value={mpFormState.mp_public_key}
-                  onChange={handleMPInputChange('mp_public_key')}
-                  helperText="Your Mercado Pago public key (mp_public_key)"
-                  disabled={!isEditingMP}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  required
-                  label="Access Token"
-                  value={mpFormState.access_token}
-                  onChange={handleMPInputChange('access_token')}
-                  helperText="Your Mercado Pago access token (access_token)"
-                  type={showMPAccessToken ? 'text' : 'password'}
-                  disabled={!isEditingMP}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          aria-label="toggle access token visibility"
-                          onClick={() => setShowMPAccessToken(!showMPAccessToken)}
-                          edge="end"
-                        >
-                          {showMPAccessToken ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Webhook Secret"
-                  value={mpFormState.webhook_secret}
-                  onChange={handleMPInputChange('webhook_secret')}
-                  helperText="Optional: Webhook secret for Mercado Pago notifications (webhook_secret)"
-                  disabled={!isEditingMP}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="MP User ID"
-                  value={mpFormState.mp_user_id}
-                  onChange={handleMPInputChange('mp_user_id')}
-                  helperText="Mercado Pago user ID (mp_user_id)"
-                  disabled={!isEditingMP}
-                />
-              </Grid>
-              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                {isEditingMP ? (
-                  <>
-                    <Button
-                      variant="outlined"
-                      startIcon={<CancelIcon />}
-                      onClick={handleMPCancel}
-                      disabled={mpMutation.isPending}
-                    >
-                      Cancel
-                    </Button>
+            <>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    Mercado Pago Configuration
+                  </Typography>
+                  {mpUpdateError && <Alert severity="error" sx={{ mb: 2 }}>{mpUpdateError}</Alert>}
+                  {mpUpdateSuccess && <Alert severity="success" sx={{ mb: 2 }}>Settings updated successfully!</Alert>}
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Public Key"
+                    value={mpFormState.mp_public_key}
+                    onChange={handleMPInputChange('mp_public_key')}
+                    helperText="Your Mercado Pago public key (mp_public_key)"
+                    disabled={!isEditingMP}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    required
+                    label="Access Token"
+                    value={mpFormState.access_token}
+                    onChange={handleMPInputChange('access_token')}
+                    helperText="Your Mercado Pago access token (access_token)"
+                    type={showMPAccessToken ? 'text' : 'password'}
+                    disabled={!isEditingMP}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            aria-label="toggle access token visibility"
+                            onClick={() => setShowMPAccessToken(!showMPAccessToken)}
+                            edge="end"
+                          >
+                            {showMPAccessToken ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Webhook Secret"
+                    value={mpFormState.webhook_secret}
+                    onChange={handleMPInputChange('webhook_secret')}
+                    helperText="Optional: Webhook secret for Mercado Pago notifications (webhook_secret)"
+                    disabled={!isEditingMP}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="MP User ID"
+                    value={mpFormState.mp_user_id}
+                    onChange={handleMPInputChange('mp_user_id')}
+                    helperText="Mercado Pago user ID (mp_user_id)"
+                    disabled={!isEditingMP}
+                  />
+                </Grid>
+                <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                  {isEditingMP ? (
+                    <>
+                      <Button
+                        variant="outlined"
+                        startIcon={<CancelIcon />}
+                        onClick={handleMPCancel}
+                        disabled={mpMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<SaveIcon />}
+                        onClick={handleMPSave}
+                        disabled={mpMutation.isPending}
+                      >
+                        {mpMutation.isPending ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                    </>
+                  ) : (
                     <Button
                       variant="contained"
-                      color="primary"
-                      startIcon={<SaveIcon />}
-                      onClick={handleMPSave}
-                      disabled={mpMutation.isPending}
+                      startIcon={<EditIcon />}
+                      onClick={() => setIsEditingMP(true)}
                     >
-                      {mpMutation.isPending ? 'Saving...' : 'Save Changes'}
+                      Edit Settings
                     </Button>
-                  </>
-                ) : (
-                  <Button
-                    variant="contained"
-                    startIcon={<EditIcon />}
-                    onClick={() => setIsEditingMP(true)}
-                  >
-                    Edit Settings
-                  </Button>
-                )}
+                  )}
+                </Grid>
               </Grid>
-            </Grid>
+              <Box sx={{ mt: 4 }}>
+                <PixInstallmentsConfig />
+              </Box>
+            </>
           )}
         </TabPanel>
       </Paper>
