@@ -95,13 +95,25 @@ const PaymentPage: React.FC = () => {
 
     const handleSubmitPayment = async (formData: any) => { // Type according to MercadoPago's SDK
         setSubmissionStatus('processing');
-        console.log('Payment submitted to MercadoPago Brick. formData:', formData);
+        console.log('Payment data received from MercadoPago Brick. formData:', formData);
+        console.log('IMPORTANT: This data should be sent to your backend to create the actual payment with MercadoPago via a server-to-server call.');
 
+        // SIMULATE that the frontend has sent this to its backend, and is now awaiting actual confirmation
+        // In a real scenario, this is where you would POST `formData` to your backend.
+        // Your backend would then POST to MercadoPago.
+        // The UI should wait for a response from *your* backend.
+
+        // For now, to address the Payment Team's concern, we will show a message
+        // indicating the data was sent for processing, but the final outcome is pending via WhatsApp.
+        // This avoids a premature "Payment Submitted!" if MP internally rejected it due to low amount
+        // or if other issues occur during the actual server-to-server payment creation.
+
+        // We are still resolving the promise to the Brick to let it know we've handled the callback.
         return new Promise<void>((resolve) => {
-            setTimeout(() => { 
-                setSubmissionStatus('submitted');
-                resolve();
-            }, 1500); 
+            // This status means: "We've got your card details from the form, PayServ will now try to process it with MercadoPago.
+            // Look for a WhatsApp message for the final status."
+            setSubmissionStatus('submitted'); 
+            resolve();
         });
     };
     

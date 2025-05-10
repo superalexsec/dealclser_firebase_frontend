@@ -690,4 +690,65 @@ export const deleteCategory = async (categoryId: string, token: string | null): 
         headers: { Authorization: `Bearer ${token}` }
     });
     // No return value needed for 204.
+};
+
+// --- Mercado Pago Config Types ---
+export interface MercadoPagoConfig {
+  public_key: string;
+  access_token: string;
+}
+
+// Fetch Mercado Pago config for the tenant
+export const fetchMercadoPagoConfig = async (token?: string | null): Promise<MercadoPagoConfig> => {
+  if (!token) throw new Error('Authentication token is required.');
+  const { data } = await apiClient.get<MercadoPagoConfig>('/tenants/me/mercadopago-config', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return data;
+};
+
+// Update Mercado Pago config for the tenant
+export const updateMercadoPagoConfig = async (updateData: MercadoPagoConfig, token?: string | null): Promise<MercadoPagoConfig> => {
+  if (!token) throw new Error('Authentication token is required.');
+  const { data } = await apiClient.put<MercadoPagoConfig>('/tenants/me/mercadopago-config', updateData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return data;
+}; 
+
+// --- Payment Sessions API ---
+export interface PaymentSession {
+  id: string;
+  tenant_id: string;
+  client_phone_number: string;
+  total_amount: string;
+  selected_payment_method: string;
+  payment_link: string;
+  payment_id_external: string;
+  preference_id: string;
+  current_step: string;
+  created_at: string;
+  updated_at: string;
+  status: string;
+  confirmed_at: string | null;
+}
+
+export interface PaymentSessionDetails extends PaymentSession {}
+
+export const fetchPaymentSessions = async (clientPhoneNumber: string, token?: string | null): Promise<PaymentSession[]> => {
+  if (!token) throw new Error('Authentication token is required.');
+  if (!clientPhoneNumber) throw new Error('Client phone number is required.');
+  const { data } = await apiClient.get<{ sessions: PaymentSession[] }>(`/payments/sessions?client_phone_number=${encodeURIComponent(clientPhoneNumber)}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return data.sessions;
+};
+
+export const fetchPaymentSessionDetails = async (sessionId: string, token?: string | null): Promise<PaymentSessionDetails> => {
+  if (!token) throw new Error('Authentication token is required.');
+  if (!sessionId) throw new Error('Session ID is required.');
+  const { data } = await apiClient.get<PaymentSessionDetails>(`/payments/sessions/${sessionId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return data;
 }; 

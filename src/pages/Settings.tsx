@@ -25,7 +25,9 @@ import apiClient, {
     WhatsappConfig, 
     WhatsappConfigUpdate,
     fetchWhatsappConfig,
-    updateWhatsappConfig
+    updateWhatsappConfig,
+    fetchMercadoPagoConfig,
+    updateMercadoPagoConfig,
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -163,18 +165,74 @@ const Settings = () => {
     }
   };
 
-  // --- Dropbox Sign Tab State (unchanged) ---
-  const [dropboxSignSettings, setDropboxSignSettings] = useState({
-    apiKey: '',
-    clientId: '',
+  // --- Mercado Pago Tab State & Logic ---
+  const [isEditingMP, setIsEditingMP] = useState(false);
+  const [showMPAccessToken, setShowMPAccessToken] = useState(false);
+  const [mpFormState, setMPFormState] = useState({ public_key: '', access_token: '' });
+  const [mpUpdateError, setMPUpdateError] = useState<string | null>(null);
+  const [mpUpdateSuccess, setMPUpdateSuccess] = useState<boolean>(false);
+
+  const { data: mpConfig, isLoading: isLoadingMPConfig, error: fetchMPError } = useQuery({
+    queryKey: ['mercadoPagoConfig', token],
+    queryFn: () => fetchMercadoPagoConfig(token),
+    enabled: !!token,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
-  const handleDropboxSignChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setDropboxSignSettings({
-      ...dropboxSignSettings,
-      [field]: event.target.value,
-    });
+
+  useEffect(() => {
+    if (mpConfig && !isEditingMP) {
+      setMPFormState({
+        public_key: mpConfig.public_key || '',
+        access_token: mpConfig.access_token || '',
+      });
+    } else if (mpConfig) {
+      setMPFormState((prev) => ({
+        public_key: prev.public_key ?? mpConfig.public_key,
+        access_token: prev.access_token ?? mpConfig.access_token,
+      }));
+    }
+  }, [mpConfig, isEditingMP]);
+
+  const mpMutation = useMutation({
+    mutationFn: (updateData: { public_key: string; access_token: string }) => updateMercadoPagoConfig(updateData, token),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['mercadoPagoConfig', token], data);
+      setIsEditingMP(false);
+      setMPUpdateError(null);
+      setMPUpdateSuccess(true);
+      setTimeout(() => setMPUpdateSuccess(false), 3000);
+    },
+    onError: (error: any) => {
+      setMPUpdateError(error.message || 'Failed to update Mercado Pago settings.');
+      setMPUpdateSuccess(false);
+    },
+  });
+
+  const handleMPInputChange = (field: 'public_key' | 'access_token') => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setMPFormState({ ...mpFormState, [field]: event.target.value });
   };
-  // --- End Dropbox Sign ---
+
+  const handleMPSave = () => {
+    if (!mpFormState.public_key || !mpFormState.access_token) {
+      setMPUpdateError('Both Public Key and Access Token are required.');
+      return;
+    }
+    setMPUpdateError(null);
+    mpMutation.mutate(mpFormState);
+  };
+
+  const handleMPCancel = () => {
+    setIsEditingMP(false);
+    setMPUpdateError(null);
+    setMPUpdateSuccess(false);
+    if (mpConfig) {
+      setMPFormState({
+        public_key: mpConfig.public_key || '',
+        access_token: mpConfig.access_token || '',
+      });
+    }
+  };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -189,7 +247,7 @@ const Settings = () => {
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={handleTabChange} aria-label="service settings tabs">
             <Tab label="WhatsApp Business" {...a11yProps(0)} />
-            <Tab label="Dropbox Sign" {...a11yProps(1)} />
+            <Tab label="Mercado Pago" {...a11yProps(1)} />
           </Tabs>
         </Box>
 
@@ -313,32 +371,88 @@ const Settings = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Dropbox Sign Configuration
-              </Typography>
+          {isLoadingMPConfig ? (
+            <CircularProgress />
+          ) : fetchMPError ? (
+            <Alert severity="error">Error loading Mercado Pago config: {fetchMPError.message}</Alert>
+          ) : (
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Mercado Pago Configuration
+                </Typography>
+                {mpUpdateError && <Alert severity="error" sx={{ mb: 2 }}>{mpUpdateError}</Alert>}
+                {mpUpdateSuccess && <Alert severity="success" sx={{ mb: 2 }}>Settings updated successfully!</Alert>}
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Public Key"
+                  value={mpFormState.public_key}
+                  onChange={handleMPInputChange('public_key')}
+                  helperText="Your Mercado Pago public key"
+                  disabled={!isEditingMP}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  required
+                  label="Access Token"
+                  value={mpFormState.access_token}
+                  onChange={handleMPInputChange('access_token')}
+                  helperText="Your Mercado Pago access token"
+                  type={showMPAccessToken ? 'text' : 'password'}
+                  disabled={!isEditingMP}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle access token visibility"
+                          onClick={() => setShowMPAccessToken(!showMPAccessToken)}
+                          edge="end"
+                        >
+                          {showMPAccessToken ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                {isEditingMP ? (
+                  <>
+                    <Button
+                      variant="outlined"
+                      startIcon={<CancelIcon />}
+                      onClick={handleMPCancel}
+                      disabled={mpMutation.isPending}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      startIcon={<SaveIcon />}
+                      onClick={handleMPSave}
+                      disabled={mpMutation.isPending}
+                    >
+                      {mpMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="contained"
+                    startIcon={<EditIcon />}
+                    onClick={() => setIsEditingMP(true)}
+                  >
+                    Edit Settings
+                  </Button>
+                )}
+              </Grid>
             </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="API Key"
-                value={dropboxSignSettings.apiKey}
-                onChange={handleDropboxSignChange('apiKey')}
-                helperText="Dropbox Sign API key"
-                type="password"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Client ID"
-                value={dropboxSignSettings.clientId}
-                onChange={handleDropboxSignChange('clientId')}
-                helperText="Dropbox Sign client ID"
-              />
-            </Grid>
-          </Grid>
+          )}
         </TabPanel>
       </Paper>
     </Box>

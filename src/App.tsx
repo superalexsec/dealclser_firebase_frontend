@@ -19,6 +19,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProductsCatalogPage from './pages/ProductsCatalogPage';
 import CartPage from './pages/CartPage';
 import PaymentPage from './pages/PaymentPage';
+import Purchases from './pages/Purchases';
 
 const queryClient = new QueryClient();
 
@@ -102,6 +103,11 @@ const App: React.FC = () => {
               <Route path="/cart" element={
                 <ProtectedRoute>
                   <CartPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/purchases" element={
+                <ProtectedRoute>
+                  <Purchases />
                 </ProtectedRoute>
               } />
             </Routes>
