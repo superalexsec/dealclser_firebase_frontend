@@ -28,6 +28,7 @@ import apiClient, {
     updateWhatsappConfig,
     fetchMercadoPagoConfig,
     updateMercadoPagoConfig,
+    MercadoPagoConfig,
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -168,7 +169,17 @@ const Settings = () => {
   // --- Mercado Pago Tab State & Logic ---
   const [isEditingMP, setIsEditingMP] = useState(false);
   const [showMPAccessToken, setShowMPAccessToken] = useState(false);
-  const [mpFormState, setMPFormState] = useState({ public_key: '', access_token: '' });
+  const [mpFormState, setMPFormState] = useState<MercadoPagoConfig & {
+    webhook_secret?: string;
+    mp_user_id?: string;
+    mp_application_id?: string;
+  }>({
+    access_token: '',
+    mp_public_key: '',
+    webhook_secret: '',
+    mp_user_id: '',
+    mp_application_id: '',
+  });
   const [mpUpdateError, setMPUpdateError] = useState<string | null>(null);
   const [mpUpdateSuccess, setMPUpdateSuccess] = useState<boolean>(false);
 
@@ -183,19 +194,29 @@ const Settings = () => {
   useEffect(() => {
     if (mpConfig && !isEditingMP) {
       setMPFormState({
-        public_key: mpConfig.public_key || '',
         access_token: mpConfig.access_token || '',
+        mp_public_key: mpConfig.mp_public_key || '',
+        webhook_secret: mpConfig.webhook_secret || '',
+        mp_user_id: mpConfig.mp_user_id || '',
+        mp_application_id: mpConfig.mp_application_id || '',
       });
     } else if (mpConfig) {
       setMPFormState((prev) => ({
-        public_key: prev.public_key ?? mpConfig.public_key,
         access_token: prev.access_token ?? mpConfig.access_token,
+        mp_public_key: prev.mp_public_key ?? mpConfig.mp_public_key,
+        webhook_secret: prev.webhook_secret ?? mpConfig.webhook_secret,
+        mp_user_id: prev.mp_user_id ?? mpConfig.mp_user_id,
+        mp_application_id: prev.mp_application_id ?? mpConfig.mp_application_id,
       }));
     }
   }, [mpConfig, isEditingMP]);
 
+  const handleMPInputChange = (field: keyof typeof mpFormState) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setMPFormState({ ...mpFormState, [field]: event.target.value });
+  };
+
   const mpMutation = useMutation({
-    mutationFn: (updateData: { public_key: string; access_token: string }) => updateMercadoPagoConfig(updateData, token),
+    mutationFn: (updateData: typeof mpFormState) => updateMercadoPagoConfig(updateData, token),
     onSuccess: (data) => {
       queryClient.setQueryData(['mercadoPagoConfig', token], data);
       setIsEditingMP(false);
@@ -209,13 +230,9 @@ const Settings = () => {
     },
   });
 
-  const handleMPInputChange = (field: 'public_key' | 'access_token') => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setMPFormState({ ...mpFormState, [field]: event.target.value });
-  };
-
   const handleMPSave = () => {
-    if (!mpFormState.public_key || !mpFormState.access_token) {
-      setMPUpdateError('Both Public Key and Access Token are required.');
+    if (!mpFormState.access_token || !mpFormState.mp_public_key) {
+      setMPUpdateError('Both Access Token and Public Key are required.');
       return;
     }
     setMPUpdateError(null);
@@ -228,8 +245,11 @@ const Settings = () => {
     setMPUpdateSuccess(false);
     if (mpConfig) {
       setMPFormState({
-        public_key: mpConfig.public_key || '',
         access_token: mpConfig.access_token || '',
+        mp_public_key: mpConfig.mp_public_key || '',
+        webhook_secret: mpConfig.webhook_secret || '',
+        mp_user_id: mpConfig.mp_user_id || '',
+        mp_application_id: mpConfig.mp_application_id || '',
       });
     }
   };
@@ -389,9 +409,9 @@ const Settings = () => {
                   fullWidth
                   required
                   label="Public Key"
-                  value={mpFormState.public_key}
-                  onChange={handleMPInputChange('public_key')}
-                  helperText="Your Mercado Pago public key"
+                  value={mpFormState.mp_public_key}
+                  onChange={handleMPInputChange('mp_public_key')}
+                  helperText="Your Mercado Pago public key (mp_public_key)"
                   disabled={!isEditingMP}
                 />
               </Grid>
@@ -402,7 +422,7 @@ const Settings = () => {
                   label="Access Token"
                   value={mpFormState.access_token}
                   onChange={handleMPInputChange('access_token')}
-                  helperText="Your Mercado Pago access token"
+                  helperText="Your Mercado Pago access token (access_token)"
                   type={showMPAccessToken ? 'text' : 'password'}
                   disabled={!isEditingMP}
                   InputProps={{
@@ -418,6 +438,26 @@ const Settings = () => {
                       </InputAdornment>
                     ),
                   }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Webhook Secret"
+                  value={mpFormState.webhook_secret}
+                  onChange={handleMPInputChange('webhook_secret')}
+                  helperText="Optional: Webhook secret for Mercado Pago notifications (webhook_secret)"
+                  disabled={!isEditingMP}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="MP User ID"
+                  value={mpFormState.mp_user_id}
+                  onChange={handleMPInputChange('mp_user_id')}
+                  helperText="Mercado Pago user ID (mp_user_id)"
+                  disabled={!isEditingMP}
                 />
               </Grid>
               <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>

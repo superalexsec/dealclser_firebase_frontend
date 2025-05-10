@@ -694,23 +694,26 @@ export const deleteCategory = async (categoryId: string, token: string | null): 
 
 // --- Mercado Pago Config Types ---
 export interface MercadoPagoConfig {
-  public_key: string;
   access_token: string;
+  mp_public_key: string;
+  webhook_secret?: string;
+  mp_user_id?: string;
+  mp_application_id?: string;
 }
 
 // Fetch Mercado Pago config for the tenant
 export const fetchMercadoPagoConfig = async (token?: string | null): Promise<MercadoPagoConfig> => {
   if (!token) throw new Error('Authentication token is required.');
-  const { data } = await apiClient.get<MercadoPagoConfig>('/tenants/me/mercadopago-config', {
+  const { data } = await apiClient.get<MercadoPagoConfig>('/payments/mercadopago-config', {
     headers: { Authorization: `Bearer ${token}` }
   });
   return data;
 };
 
-// Update Mercado Pago config for the tenant
+// Update Mercado Pago config for the tenant (PATCH)
 export const updateMercadoPagoConfig = async (updateData: MercadoPagoConfig, token?: string | null): Promise<MercadoPagoConfig> => {
   if (!token) throw new Error('Authentication token is required.');
-  const { data } = await apiClient.put<MercadoPagoConfig>('/tenants/me/mercadopago-config', updateData, {
+  const { data } = await apiClient.patch<MercadoPagoConfig>('/payments/mercadopago-config', updateData, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return data;
