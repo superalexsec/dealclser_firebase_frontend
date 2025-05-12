@@ -1,45 +1,74 @@
-Subject: New PayServ Endpoints for Tenant Payment Config (Pix Discount & Max Installments)
+Subject: New `date_of_birth` field available for Clients
 
-Hi Tenants Team,
+Hi Frontend Team,
 
-We have added new endpoints to PayServ to allow you to get and update the Pix discount and max installments for each tenant's payment configuration. These endpoints are intended for internal use and do not require authentication from PayServ, as your backend will proxy requests and handle authentication.
+The Tenant Backend API has been updated to support a new `date_of_birth` field for client records.
 
----
+**Details:**
 
-**Endpoints:**
+*   **Field Name:** `date_of_birth`
+*   **Availability:**
+    *   Can be included (optional) when creating a client (`POST /clients`).
+    *   Can be included (optional) when updating a client (`PUT /clients/{client_id}`).
+    *   Will be returned (if set) when fetching clients (`GET /clients` or `GET /clients/{client_id}`).
+*   **Format:** The date should be sent as a string in `YYYY-MM-DD` format.
+*   **Optional:** This field is not required.
 
-1. **Get Current Payment Config**
-   - **GET** `/v1/tenants/{tenant_id}/payment-config`
-   - **Response Example:**
-     ```json
-     {
-       "tenant_id": "44921cd3-2158-4dde-9551-084f020f3ee4",
-       "max_installments": 12,
-       "default_payment_methods": ["PIX", "CREDIT_CARD"],
-       "pix_discount": 4.0,
-       "created_at": "2024-06-10T12:00:00Z",
-       "updated_at": "2024-06-10T12:00:00Z"
-     }
-     ```
+**Example API Usage:**
 
-2. **Update Pix Discount and/or Max Installments**
-   - **PATCH** `/v1/tenants/{tenant_id}/payment-config`
-   - **Request Body (any or both fields):**
-     ```json
-     {
-       "pix_discount": 5.0,
-       "max_installments": 10
-     }
-     ```
-   - **Response:** Returns the updated config (same as GET response).
+**1. Creating a Client with Date of Birth:**
+```http
+POST /clients
+Authorization: Bearer <your_token>
+Content-Type: application/json
 
----
+{
+  "client_phone_number": "+5511987654321",
+  "first_name": "Jane",
+  "surname": "Doe",
+  "email": "jane.doe@example.com",
+  "date_of_birth": "1995-06-15" 
+  // ... other optional fields
+}
+```
 
-**Notes:**
-- You can update either `pix_discount`, `max_installments`, or both in a single PATCH request.
-- No authentication is required from PayServ; your backend should proxy and secure these endpoints.
+**2. Updating a Client's Date of Birth:**
+```http
+PUT /clients/{client_id}
+Authorization: Bearer <your_token>
+Content-Type: application/json
 
-Let us know if you need any changes or further integration!
+{
+  "date_of_birth": "1995-06-15"
+  // ... other fields to update
+}
+```
+
+**3. Example Response when Fetching a Client:**
+```json
+{
+  "id": "eaaec79c-af6d-456a-bd90-0466efc49c36",
+  "tenant_id": "44921cd3-2158-4dde-9551-084f020f3ee4",
+  "client_phone_number": "+5511987654321",
+  "client_identification": null,
+  "address": null,
+  "city": null,
+  "state": null,
+  "country": null,
+  "email": "jane.doe@example.com",
+  "first_name": "Jane",
+  "surname": "Doe",
+  "date_of_birth": "1995-06-15", // <--- Field is included here if set
+  "zip_code": null,
+  "custom_field": null,
+  "created_at": "2024-05-12T22:10:00.123Z",
+  "updated_at": "2024-05-12T22:14:00.456Z"
+}
+```
+
+Please update the frontend interface to allow users to input and view this new `date_of_birth` field where appropriate.
+
+Let us know if you have any questions!
 
 Best,
-Payment Service Team
+Tenant Service Team

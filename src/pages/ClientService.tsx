@@ -143,6 +143,7 @@ const ClientService: React.FC = () => {
       client_phone_number: newClient.client_phone_number || null,
       email: newClient.email || null,
       zip_code: newClient.zip_code || null,
+      date_of_birth: newClient.date_of_birth || null,
     };
     createClientMutation.mutate(payload);
   };
@@ -370,6 +371,16 @@ const ClientService: React.FC = () => {
             fullWidth
             value={newClient.country ?? 'Brasil'}
             onChange={handleInputChange('country')}
+            disabled={createClientMutation.isPending}
+          />
+          <TextField
+            margin="dense"
+            label="Date of Birth"
+            type="date"
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+            value={newClient.date_of_birth ?? ''}
+            onChange={handleInputChange('date_of_birth')}
             disabled={createClientMutation.isPending}
           />
         </DialogContent>

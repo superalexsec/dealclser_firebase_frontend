@@ -276,6 +276,7 @@ export interface Client {
     country: string | null;
     client_phone_number: string | null; // Renamed from phone
     email: string | null;
+    date_of_birth?: string | null; // NEW: Add date_of_birth field
     created_at: string; // ISO date string
     updated_at: string; // ISO date string
     zip_code: string | null; // Added based on DB
@@ -294,6 +295,7 @@ export interface ClientCreate {
     country?: string | null;
     client_phone_number?: string | null; // Renamed from phone
     email?: string | null;
+    date_of_birth?: string | null; // NEW: Add date_of_birth field
     zip_code?: string | null; // Added based on DB
     // custom_field is likely not set on creation unless specified
 }
@@ -310,6 +312,7 @@ export interface ClientUpdate {
     country?: string | null;
     client_phone_number?: string | null; // Renamed from phone
     email?: string | null;
+    date_of_birth?: string | null; // NEW: Add date_of_birth field
     zip_code?: string | null; // Added based on DB
     custom_field?: string | null; // Added based on DB
     // Don't usually allow changing client_identification or tenant_id

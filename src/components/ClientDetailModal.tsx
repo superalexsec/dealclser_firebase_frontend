@@ -75,6 +75,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 state: client.state || '',
                 zip_code: client.zip_code || '',
                 country: client.country || 'Brasil',
+                date_of_birth: client.date_of_birth || '',
                 custom_field: client.custom_field || ''
             });
         } else {
@@ -98,6 +99,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 state: client.state || '',
                 zip_code: client.zip_code || '',
                 country: client.country || 'Brasil',
+                date_of_birth: client.date_of_birth || '',
                 custom_field: client.custom_field || ''
             });
         }
@@ -291,6 +293,19 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                             onChange={handleInputChange('country')}
                             disabled={!isEditing || isUpdatingClient}
                             InputProps={{ readOnly: !isEditing }}
+                            variant={isEditing ? "outlined" : "standard"}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                         <TextField
+                            label="Date of Birth"
+                            type="date"
+                            fullWidth
+                            value={isEditing ? editFormState.date_of_birth : client.date_of_birth || ''}
+                            onChange={handleInputChange('date_of_birth')}
+                            disabled={!isEditing || isUpdatingClient}
+                            InputProps={{ readOnly: !isEditing }}
+                            InputLabelProps={{ shrink: true }}
                             variant={isEditing ? "outlined" : "standard"}
                         />
                     </Grid>
