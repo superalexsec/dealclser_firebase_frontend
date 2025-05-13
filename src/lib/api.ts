@@ -783,9 +783,167 @@ export const fetchPaymentConfig = async (token?: string | null): Promise<Payment
 };
 
 export const updatePaymentConfig = async (updateData: UpdatePaymentConfigPayload, token?: string | null): Promise<PaymentConfig> => {
-  if (!token) throw new Error('Authentication token is required.');
-  const { data } = await apiClient.patch<PaymentConfig>('/payments/payment-config', updateData, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.put<PaymentConfig>('/settings/payments', updateData, config);
   return data;
+}; 
+
+// --- Contract Template Types ---
+
+export interface ContractTemplateRead {
+    id: string; // Assuming backend includes an ID
+    name: string;
+    content: string; // HTML content
+    tenant_id: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ContractTemplateUpdatePayload {
+    name?: string; // Optional name update
+    content: string; // HTML content is required for update
+}
+
+// --- Client Contract Listing Types (Placeholder) ---
+
+export enum ContractStatus {
+    AWAITING_SIGNATURE = 'awaiting_signature',
+    SIGNED = 'signed',
+    GENERATED = 'generated', // Or other relevant statuses
+    ERROR = 'error',
+}
+
+export interface ClientContractListItem {
+    contract_db_id: string; // The ID used in URLs and signing
+    client_id: string;
+    client_name: string; // Need to fetch/join this potentially
+    client_phone_number: string; // Need to fetch/join this potentially
+    status: ContractStatus;
+    generated_at: string;
+    signed_at?: string | null;
+    frontend_url?: string | null; // The URL for the client to view/sign
+}
+
+// --- Public Contract Signing Types ---
+
+export interface PublicContractDetails {
+    contract_db_id: string;
+    content: string; // HTML content to display
+    client_id: string; // Needed for signing payload
+    client_phone_number: string; // Needed for signing payload
+    status: ContractStatus; // Current status
+    signed_at?: string | null; // Add signed_at field
+    // Add other relevant details if needed
+}
+
+export interface DeviceInfo {
+    ip_address?: string;
+    user_agent?: string;
+    other_details?: Record<string, any>;
+}
+export interface ContractSigningPayload {
+    client_phone_number: string;
+    client_id: string;
+    device_info?: DeviceInfo;
+}
+
+export interface ContractSigningResponse {
+    status: ContractStatus; // Should be 'signed' on success
+    message?: string;
+    signed_at?: string;
+}
+
+
+// --- Contract API Functions ---
+
+// Fetch tenant's contract template
+export const fetchContractTemplate = async (token?: string | null): Promise<ContractTemplateRead> => {
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    // Use a try-catch or handle potential 404 if template doesn't exist yet
+    try {
+        const { data } = await apiClient.get<ContractTemplateRead>('/contract-api/template/', config);
+        return data;
+    } catch (error: any) {
+        if (error.response && error.response.status === 404) {
+            // Handle case where tenant has no template yet gracefully
+            console.warn('No contract template found for tenant.');
+            // Return a default or empty state, or rethrow specific error
+            // For now, let's return a partial structure indication non-existence
+             return { id: '', name: 'No Template', content: '<p>Please create a template.</p>', tenant_id: '', created_at: '', updated_at: '' };
+        }
+        console.error('Error fetching contract template:', error);
+        throw error; // Rethrow other errors
+    }
+};
+
+// Update or Create tenant's contract template (Using PUT as upsert)
+export const updateContractTemplate = async (payload: ContractTemplateUpdatePayload, token?: string | null): Promise<ContractTemplateRead> => {
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    const { data } = await apiClient.put<ContractTemplateRead>('/contract-api/template/', payload, config);
+    return data;
+};
+
+
+// --- Placeholder --- Fetch list of client contracts (Backend endpoint TBD)
+export const fetchClientContracts = async (token?: string | null): Promise<ClientContractListItem[]> => {
+    console.warn('fetchClientContracts: Backend endpoint /contract-api/contracts/ is not yet available.');
+    // Return mock data or empty array
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+    return [
+        // { contract_db_id: 'uuid-1', client_id: 'client-a', client_name: 'Client A', client_phone_number: '+123', status: ContractStatus.SIGNED, generated_at: new Date().toISOString(), signed_at: new Date().toISOString() },
+        // { contract_db_id: 'uuid-2', client_id: 'client-b', client_name: 'Client B', client_phone_number: '+456', status: ContractStatus.AWAITING_SIGNATURE, generated_at: new Date().toISOString(), frontend_url: '/contracts/view/uuid-2' },
+    ];
+    // TODO: Replace with actual API call when available:
+    // const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    // const { data } = await apiClient.get<ClientContractListItem[]>('/contract-api/contracts/', config);
+    // return data;
+};
+
+// Fetch public details for a specific contract (Needed for signing page)
+// ASSUMPTION: Endpoint exists at /contract-api/contracts/{contract_db_id}/public-details
+export const fetchPublicContractDetails = async (contractDbId: string): Promise<PublicContractDetails> => {
+    console.warn('fetchPublicContractDetails: Assuming endpoint /contract-api/contracts/{contractDbId}/public-details exists.');
+    // Implement mock data until endpoint is confirmed
+    await new Promise(resolve => setTimeout(resolve, 500));
+    if (contractDbId === 'mock-uuid-awaiting') {
+        return {
+            contract_db_id: contractDbId,
+            content: '<p>This is a <b>mock contract</b> for signing.</p><p>Scroll down...</p><p>...</p><p>End of contract.</p>',
+            client_id: 'mock-client-uuid-123',
+            client_phone_number: 'mock+111222333',
+            status: ContractStatus.AWAITING_SIGNATURE,
+        };
+    } else if (contractDbId === 'mock-uuid-signed') {
+         return {
+            contract_db_id: contractDbId,
+            content: '<p>This is a contract that is already <b>signed</b>.</p>',
+            client_id: 'mock-client-uuid-456',
+            client_phone_number: 'mock+444555666',
+            status: ContractStatus.SIGNED,
+        };
+    } else {
+         throw new Error('Mock contract not found'); // Simulate 404
+    }
+
+    // TODO: Replace with actual API call when endpoint is confirmed:
+    // try {
+    //     const { data } = await apiClient.get<PublicContractDetails>(`/contract-api/contracts/${contractDbId}/public-details`);
+    //     return data;
+    // } catch (error) {
+    //     console.error(`Error fetching public contract details for ${contractDbId}:`, error);
+    //     throw error;
+    // }
+};
+
+
+// Sign a contract (Public endpoint)
+export const signContract = async (contractDbId: string, payload: ContractSigningPayload): Promise<ContractSigningResponse> => {
+    try {
+        const { data } = await apiClient.post<ContractSigningResponse>(`/contract-api/sign/${contractDbId}`, payload);
+        return data;
+    } catch (error) {
+        console.error(`Error signing contract ${contractDbId}:`, error);
+        // Consider more specific error handling based on status codes (400, 404, 409)
+        throw error;
+    }
 }; 

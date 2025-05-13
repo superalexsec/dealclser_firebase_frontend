@@ -34,6 +34,9 @@ import {
   Logout as LogoutIcon,
   Storefront as StorefrontIcon,
   ShoppingBag as ShoppingBagIcon,
+  Description as DescriptionIcon,
+  EditNote as EditNoteIcon,
+  ListAlt as ListAltIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -165,6 +168,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { text: 'Client Service', icon: <PeopleIcon />, path: '/client-service' },
     { text: 'Calendar', icon: <CalendarTodayIcon />, path: '/calendar' },
     { text: 'PDF Service', icon: <PDFIcon />, path: '/pdf-service' },
+    { 
+      text: 'Contracts',
+      icon: <DescriptionIcon />,
+      subItems: [
+        { text: 'Templates', icon: <EditNoteIcon />, path: '/contracts/templates' },
+        { text: 'Client Contracts', icon: <ListAltIcon />, path: '/contracts/clients' },
+      ]
+    },
     { 
       text: 'Products', 
       icon: <StorefrontIcon />,

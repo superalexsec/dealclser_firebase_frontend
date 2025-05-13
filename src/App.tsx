@@ -20,6 +20,9 @@ import ProductsCatalogPage from './pages/ProductsCatalogPage';
 import CartPage from './pages/CartPage';
 import PaymentPage from './pages/PaymentPage';
 import Purchases from './pages/Purchases';
+import ContractTemplatePage from './pages/ContractTemplatePage';
+import ClientContractsPage from './pages/ClientContractsPage';
+import PublicContractSigningPage from './pages/PublicContractSigningPage';
 
 const queryClient = new QueryClient();
 
@@ -48,6 +51,7 @@ const App: React.FC = () => {
               <Route path="/" element={<Landing />} />
               <Route path="/register" element={<Register />} />
               <Route path="/payments/:sessionId" element={<PaymentPage />} />
+              <Route path="/contracts/view/:contractDbId" element={<PublicContractSigningPage />} />
               
               {/* Protected routes */}
               <Route path="/dashboard" element={
@@ -108,6 +112,16 @@ const App: React.FC = () => {
               <Route path="/purchases" element={
                 <ProtectedRoute>
                   <Purchases />
+                </ProtectedRoute>
+              } />
+              <Route path="/contracts/templates" element={
+                <ProtectedRoute>
+                  <ContractTemplatePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/contracts/clients" element={
+                <ProtectedRoute>
+                  <ClientContractsPage />
                 </ProtectedRoute>
               } />
             </Routes>
