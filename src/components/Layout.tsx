@@ -118,6 +118,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [open, setOpen] = useState(true);
   const [messagingOpen, setMessagingOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [contractsOpen, setContractsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { logout: localLogout, token } = useAuth();
@@ -134,6 +135,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleProductsClick = () => {
     setProductsOpen(!productsOpen);
+  };
+
+  const handleContractsClick = () => {
+    setContractsOpen(!contractsOpen);
+  };
+
+  const getItemOpenState = (itemText: string): boolean => {
+    if (itemText === 'Messaging') {
+      return messagingOpen;
+    }
+    if (itemText === 'Products') {
+      return productsOpen;
+    }
+    if (itemText === 'Contracts') {
+      return contractsOpen;
+    }
+    return false;
   };
 
   const logoutMutation = useMutation<void, Error>({ 
@@ -243,12 +261,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {menuItems.map((item) => (
             item.subItems ? (
               <React.Fragment key={item.text}>
-                <ListItemButton onClick={item.text === 'Messaging' ? handleMessagingClick : handleProductsClick}>
+                <ListItemButton 
+                  onClick={
+                    item.text === 'Messaging' ? handleMessagingClick :
+                    item.text === 'Products' ? handleProductsClick :
+                    item.text === 'Contracts' ? handleContractsClick :
+                    undefined 
+                  }
+                >
                   <ListItemIcon>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.text} />
-                  {(item.text === 'Messaging' ? messagingOpen : productsOpen) ? <ExpandLess /> : <ExpandMore />}
+                  {getItemOpenState(item.text) ? <ExpandLess /> : <ExpandMore />}
                 </ListItemButton>
-                <Collapse in={item.text === 'Messaging' ? messagingOpen : productsOpen} timeout="auto" unmountOnExit>
+                <Collapse 
+                  in={getItemOpenState(item.text)} 
+                  timeout="auto" 
+                  unmountOnExit
+                >
                   <List component="div" disablePadding>
                     {item.subItems.map((subItem) => (
                       <ListItem

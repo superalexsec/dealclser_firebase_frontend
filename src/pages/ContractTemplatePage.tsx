@@ -11,6 +11,7 @@ import {
   Alert,
   Paper,
   Snackbar,
+  Grid,
 } from '@mui/material';
 
 const ContractTemplatePage: React.FC = () => {
@@ -135,6 +136,18 @@ const ContractTemplatePage: React.FC = () => {
           {mutation.isPending ? 'Saving...' : (templateId ? 'Update Template' : 'Create Template')}
         </Button>
       </Box>
+
+      {/* HTML Preview Area */}
+      {templateContent && (
+        <Grid item xs={12} sx={{ mt: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Live Preview
+          </Typography>
+          <Paper elevation={2} sx={{ p: 2, border: '1px dashed #ccc', minHeight: '150px' }}>
+            <div dangerouslySetInnerHTML={{ __html: templateContent }} />
+          </Paper>
+        </Grid>
+      )}
 
       <Snackbar
           open={isSnackbarOpen}

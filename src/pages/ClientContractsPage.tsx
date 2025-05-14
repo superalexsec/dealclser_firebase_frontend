@@ -86,7 +86,7 @@ const ClientContractsPage: React.FC = () => {
           <Table sx={{ minWidth: 650 }} aria-label="client contracts table">
             <TableHead>
               <TableRow>
-                <TableCell>Client ID</TableCell>
+                <TableCell>Client Name</TableCell>
                 <TableCell>Client Phone</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Generated At</TableCell>
@@ -106,7 +106,7 @@ const ClientContractsPage: React.FC = () => {
                   sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
                 >
                   <TableCell component="th" scope="row">
-                    {contract.client_id}
+                    {contract.client_name}
                   </TableCell>
                    <TableCell>{contract.client_phone_number || 'N/A'}</TableCell>
                   <TableCell>{getStatusChip(contract.status)}</TableCell>
