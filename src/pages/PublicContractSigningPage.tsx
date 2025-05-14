@@ -37,10 +37,12 @@ const PublicContractSigningPage: React.FC = () => {
     queryKey: ['publicContract', contractDbId],
     queryFn: () => fetchPublicContractDetails(contractDbId!),
     enabled: !!contractDbId,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
     retry: (failureCount, err: any) => {
         // Do not retry on 404 or if contract is already signed
-        if (err.message === 'Mock contract not found' || (contractDetails && contractDetails.status === ContractStatus.SIGNED)) {
+        if (err.message === 'Mock contract not found' || 
+            (contractDetails && contractDetails.status === ContractStatus.SIGNED) || 
+            (err.response && err.response.status === 404)) { // Added check for actual 404 responses
             return false;
         }
         return failureCount < 2;
@@ -132,7 +134,7 @@ const PublicContractSigningPage: React.FC = () => {
   if (!contractDetails) {
     return (
       <Container sx={{ mt: 5 }}>
-        <Alert severity="info">No contract details found.</Alert>
+        <Alert severity="info">Contract details are currently unavailable. Please check the link or try again later.</Alert>
       </Container>
     );
   }
@@ -152,23 +154,48 @@ const PublicContractSigningPage: React.FC = () => {
           </Alert>
         )}
 
-        <Box
-          ref={contentRef}
-          sx={{
-            border: '1px solid #ccc',
-            p: 2,
-            mb: 3,
-            maxHeight: '500px',
-            overflowY: 'auto',
-            backgroundColor: '#f9f9f9',
-          }}
-          dangerouslySetInnerHTML={{ __html: contractDetails.content || '<p>No content available.</p>' }}
-        />
+        {contractDetails.pdf_download_url && (
+          <Box
+            ref={contentRef}
+            sx={{
+              border: '1px solid #ccc',
+              mb: 3,
+              height: '600px',
+              overflowY: 'hidden',
+            }}
+          >
+            <iframe
+              src={contractDetails.pdf_download_url}
+              width="100%"
+              height="100%"
+              title="Contract Document"
+              style={{ border: 'none' }}
+              onLoad={() => setIsScrolledToEnd(true)}
+            />
+          </Box>
+        )}
 
+        {(!contractDetails.pdf_download_url && contractDetails.content) && (
+            <Box
+              ref={!contractDetails.pdf_download_url ? contentRef : null}
+              sx={{
+                border: '1px solid #ccc',
+                p: 2,
+                mb: 3,
+                maxHeight: '500px',
+                overflowY: 'auto',
+                backgroundColor: '#f9f9f9',
+              }}
+              dangerouslySetInnerHTML={{ __html: contractDetails.content }}
+            />
+        )}
+        
         {!isAlreadySigned && (
-            <Typography variant="caption" display="block" gutterBottom sx={{textAlign: 'center', mb:1}}>
-                Please scroll to the end of the contract to enable the signing button.
-            </Typography>
+          <Typography variant="caption" display="block" gutterBottom sx={{textAlign: 'center', mb:1}}>
+            {contractDetails.pdf_download_url 
+              ? 'Please review the contract PDF above. The signing button will be enabled once the PDF is loaded.' 
+              : 'Please scroll to the end of the contract to enable the signing button.'}
+          </Typography>
         )}
 
         <Box sx={{ textAlign: 'center' }}>

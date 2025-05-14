@@ -828,12 +828,12 @@ export interface ClientContractListItem {
 
 export interface PublicContractDetails {
     contract_db_id: string;
-    content: string; // HTML content to display
+    pdf_download_url: string; // URL to the PDF (signed or unsigned based on status)
     client_id: string; // Needed for signing payload
     client_phone_number: string; // Needed for signing payload
-    status: ContractStatus; // Current status
-    signed_at?: string | null; // Add signed_at field
-    // Add other relevant details if needed
+    status: ContractStatus; // Current status - Confirmed present in latest test
+    signed_at: string | null; // Confirmed present (null if not signed)
+    content?: string | null; // HTML content - Still appears absent, keep optional or remove after clarification
 }
 
 export interface DeviceInfo {
@@ -877,62 +877,92 @@ export const fetchContractTemplate = async (token?: string | null): Promise<Cont
 };
 
 // Update or Create tenant's contract template (Using PUT as upsert)
+// This will be split into create and updateExisting
 export const updateContractTemplate = async (payload: ContractTemplateUpdatePayload, token?: string | null): Promise<ContractTemplateRead> => {
     const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
     const { data } = await apiClient.put<ContractTemplateRead>('/contract-api/template/', payload, config);
     return data;
 };
 
+// NEW: Create tenant's contract template
+export const createContractTemplate = async (payload: ContractTemplateUpdatePayload, token?: string | null): Promise<ContractTemplateRead> => {
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    const { data } = await apiClient.post<ContractTemplateRead>('/contract-api/template/', payload, config);
+    return data;
+};
+
+// RENAMED: Update tenant's existing contract template
+export const updateExistingContractTemplate = async (payload: ContractTemplateUpdatePayload, token?: string | null): Promise<ContractTemplateRead> => {
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    // Assuming the ID of the template isn't strictly needed in the URL for PUT as it's tenant-specific (1 template per tenant)
+    // If it were /contract-api/template/{templateId}, this would need adjustment.
+    // Based on current info, PUT to /contract-api/template/ updates the existing one.
+    const { data } = await apiClient.put<ContractTemplateRead>('/contract-api/template/', payload, config);
+    return data;
+};
 
 // --- Placeholder --- Fetch list of client contracts (Backend endpoint TBD)
 export const fetchClientContracts = async (token?: string | null): Promise<ClientContractListItem[]> => {
-    console.warn('fetchClientContracts: Backend endpoint /contract-api/contracts/ is not yet available.');
+    // console.warn('fetchClientContracts: Backend endpoint /contract-api/contracts/ is not yet available.');
     // Return mock data or empty array
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-    return [
-        // { contract_db_id: 'uuid-1', client_id: 'client-a', client_name: 'Client A', client_phone_number: '+123', status: ContractStatus.SIGNED, generated_at: new Date().toISOString(), signed_at: new Date().toISOString() },
-        // { contract_db_id: 'uuid-2', client_id: 'client-b', client_name: 'Client B', client_phone_number: '+456', status: ContractStatus.AWAITING_SIGNATURE, generated_at: new Date().toISOString(), frontend_url: '/contracts/view/uuid-2' },
-    ];
+    // await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+    // return [
+    //     // { contract_db_id: 'uuid-1', client_id: 'client-a', client_name: 'Client A', client_phone_number: '+123', status: ContractStatus.SIGNED, generated_at: new Date().toISOString(), signed_at: new Date().toISOString() },
+    //     // { contract_db_id: 'uuid-2', client_id: 'client-b', client_name: 'Client B', client_phone_number: '+456', status: ContractStatus.AWAITING_SIGNATURE, generated_at: new Date().toISOString(), frontend_url: '/contracts/view/uuid-2' },
+    // ];
     // TODO: Replace with actual API call when available:
-    // const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-    // const { data } = await apiClient.get<ClientContractListItem[]>('/contract-api/contracts/', config);
-    // return data;
+    if (!token) {
+        // This case should ideally be handled by query's enabled flag or AuthContext, 
+        // but as a safeguard:
+        console.warn('fetchClientContracts called without a token.');
+        return []; 
+    }
+    const config = { headers: { Authorization: `Bearer ${token}` } };
+    const { data } = await apiClient.get<ClientContractListItem[]>('/contract-api/contracts/', config);
+    return data;
 };
 
 // Fetch public details for a specific contract (Needed for signing page)
 // ASSUMPTION: Endpoint exists at /contract-api/contracts/{contract_db_id}/public-details
 export const fetchPublicContractDetails = async (contractDbId: string): Promise<PublicContractDetails> => {
-    console.warn('fetchPublicContractDetails: Assuming endpoint /contract-api/contracts/{contractDbId}/public-details exists.');
+    // console.warn('fetchPublicContractDetails: Assuming endpoint /contract-api/contracts/{contractDbId}/public-details exists.');
     // Implement mock data until endpoint is confirmed
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (contractDbId === 'mock-uuid-awaiting') {
-        return {
-            contract_db_id: contractDbId,
-            content: '<p>This is a <b>mock contract</b> for signing.</p><p>Scroll down...</p><p>...</p><p>End of contract.</p>',
-            client_id: 'mock-client-uuid-123',
-            client_phone_number: 'mock+111222333',
-            status: ContractStatus.AWAITING_SIGNATURE,
-        };
-    } else if (contractDbId === 'mock-uuid-signed') {
-         return {
-            contract_db_id: contractDbId,
-            content: '<p>This is a contract that is already <b>signed</b>.</p>',
-            client_id: 'mock-client-uuid-456',
-            client_phone_number: 'mock+444555666',
-            status: ContractStatus.SIGNED,
-        };
-    } else {
-         throw new Error('Mock contract not found'); // Simulate 404
-    }
+    // await new Promise(resolve => setTimeout(resolve, 500));
+    // if (contractDbId === 'mock-uuid-awaiting') {
+    //     return {
+    //         contract_db_id: contractDbId,
+    //         pdf_download_url: '', // Placeholder, actual URL will come from API
+    //         client_id: 'mock-client-uuid-123',
+    //         client_phone_number: 'mock+111222333',
+    //         status: ContractStatus.AWAITING_SIGNATURE,
+    //         signed_at: null,
+    //         content: '<p>This is a <b>mock contract</b> for signing.</p><p>Scroll down...</p><p>...</p><p>End of contract.</p>'
+    //     };
+    // } else if (contractDbId === 'mock-uuid-signed') {
+    //      return {
+    //         contract_db_id: contractDbId,
+    //         pdf_download_url: '', // Placeholder
+    //         client_id: 'mock-client-uuid-456',
+    //         client_phone_number: 'mock+444555666',
+    //         status: ContractStatus.SIGNED,
+    //         signed_at: new Date().toISOString(),
+    //         content: '<p>This is a contract that is already <b>signed</b>.</p>'
+    //     };
+    // } else {
+    //      throw new Error('Mock contract not found'); // Simulate 404
+    // }
 
     // TODO: Replace with actual API call when endpoint is confirmed:
-    // try {
-    //     const { data } = await apiClient.get<PublicContractDetails>(`/contract-api/contracts/${contractDbId}/public-details`);
-    //     return data;
-    // } catch (error) {
-    //     console.error(`Error fetching public contract details for ${contractDbId}:`, error);
-    //     throw error;
-    // }
+    try {
+        // This is a public endpoint, so no token/auth config needed for apiClient directly here.
+        const { data } = await apiClient.get<PublicContractDetails>(`/contract-api/contracts/${contractDbId}/public-details`);
+        return data;
+    } catch (error) {
+        console.error(`Error fetching public contract details for ${contractDbId}:`, error);
+        // Rethrow or handle as per application error handling strategy
+        // For instance, if error is AxiosError, you can inspect error.response
+        throw error;
+    }
 };
 
 

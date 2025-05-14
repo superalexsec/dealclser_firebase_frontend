@@ -1,6 +1,6 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchClientContracts, ClientContractListItem, ContractStatus } from '../lib/api'; // Import necessary types
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { fetchClientContracts, ClientContractListItem, ContractStatus, fetchPublicContractDetails } from '../lib/api'; // Import necessary types and fetchPublicContractDetails
 import { useAuth } from '../contexts/AuthContext';
 import {
   Box,
@@ -15,18 +15,43 @@ import {
   TableHead,
   TableRow,
   Chip, // For displaying status
+  Button, // For View PDF button
+  Link as MuiLink, // For opening link in new tab
 } from '@mui/material';
 
 const ClientContractsPage: React.FC = () => {
   const { token } = useAuth();
 
   // Fetch the list of client contracts
-  const { data: contracts, isLoading, error, isError } = useQuery<ClientContractListItem[], Error>({
+  const { data: contracts, isLoading, error, isError, refetch: refetchContracts } = useQuery<ClientContractListItem[], Error>({
     queryKey: ['clientContracts', token],
     queryFn: () => fetchClientContracts(token),
     enabled: !!token, // Only run query if token is available
     staleTime: 60 * 1000, // Cache for 1 minute
   });
+
+  // Mutation to fetch individual public contract details (for PDF link)
+  const { mutate: getViewablePdfLink, isPending: isFetchingPdfLink } = useMutation<string, Error, string>({
+    mutationFn: async (contractDbId: string) => {
+        const details = await fetchPublicContractDetails(contractDbId); // No token needed for this public endpoint
+        if (!details.pdf_download_url) {
+            throw new Error('PDF download URL not found in contract details.');
+        }
+        return details.pdf_download_url;
+    },
+    onSuccess: (pdfUrl: string) => {
+        window.open(pdfUrl, '_blank');
+    },
+    onError: (err: Error, contractDbId: string) => {
+        console.error(`Error fetching PDF link for contract ${contractDbId}:`, err);
+        // Optionally show a snackbar or alert to the user
+        alert(`Could not retrieve PDF link: ${err.message}`);
+    },
+  });
+
+  const handleViewPdf = (contractDbId: string) => {
+    getViewablePdfLink(contractDbId);
+  };
 
   const getStatusChip = (status: ContractStatus) => {
     switch (status) {
@@ -66,7 +91,7 @@ const ClientContractsPage: React.FC = () => {
                 <TableCell>Status</TableCell>
                 <TableCell>Generated At</TableCell>
                 <TableCell>Signed At</TableCell>
-                <TableCell>Contract Link</TableCell> {/* Link for tenant's reference */} 
+                <TableCell align="right">Actions</TableCell> {/* New column for View PDF button */}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -87,14 +112,15 @@ const ClientContractsPage: React.FC = () => {
                   <TableCell>{getStatusChip(contract.status)}</TableCell>
                   <TableCell>{new Date(contract.generated_at).toLocaleString()}</TableCell>
                   <TableCell>{contract.signed_at ? new Date(contract.signed_at).toLocaleString() : '-'}</TableCell>
-                 <TableCell>
-                    {contract.frontend_url ? (
-                      <a href={contract.frontend_url} target="_blank" rel="noopener noreferrer">
-                        View/Sign Link
-                      </a>
-                    ) : (
-                      '-'
-                    )}
+                  <TableCell align="right">
+                    <Button 
+                        variant="outlined" 
+                        size="small"
+                        onClick={() => handleViewPdf(contract.contract_db_id)}
+                        disabled={isFetchingPdfLink}
+                    >
+                        View PDF
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
