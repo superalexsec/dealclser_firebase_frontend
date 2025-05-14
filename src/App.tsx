@@ -51,7 +51,7 @@ const App: React.FC = () => {
               <Route path="/" element={<Landing />} />
               <Route path="/register" element={<Register />} />
               <Route path="/payments/:sessionId" element={<PaymentPage />} />
-              <Route path="/contracts/view/:contractDbId" element={<PublicContractSigningPage />} />
+              <Route path="/contracts/:tenantId/:clientId/:contractDbId" element={<PublicContractSigningPage />} />
               
               {/* Protected routes */}
               <Route path="/dashboard" element={

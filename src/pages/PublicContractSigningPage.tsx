@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 
 const PublicContractSigningPage: React.FC = () => {
-  const { contractDbId } = useParams<{ contractDbId: string }>();
+  const { tenantId, clientId, contractDbId } = useParams<{ tenantId: string, clientId: string, contractDbId: string }>();
   const [isSnackbarOpen, setIsSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [isScrolledToEnd, setIsScrolledToEnd] = useState(false);
@@ -154,14 +154,15 @@ const PublicContractSigningPage: React.FC = () => {
           </Alert>
         )}
 
-        {contractDetails.pdf_download_url && (
+        {/* Display PDF if URL is available */}
+        {contractDetails.pdf_download_url ? (
           <Box
-            ref={contentRef}
+            ref={contentRef} // Keep ref for scroll detection if needed for other elements
             sx={{
               border: '1px solid #ccc',
               mb: 3,
-              height: '600px',
-              overflowY: 'hidden',
+              height: '600px', // Fixed height for the PDF viewer
+              overflowY: 'hidden', // iframe will handle its own scroll
             }}
           >
             <iframe
@@ -170,24 +171,15 @@ const PublicContractSigningPage: React.FC = () => {
               height="100%"
               title="Contract Document"
               style={{ border: 'none' }}
-              onLoad={() => setIsScrolledToEnd(true)}
+              onLoad={() => setIsScrolledToEnd(true)} // Assume loaded means can sign
             />
           </Box>
-        )}
-
-        {(!contractDetails.pdf_download_url && contractDetails.content) && (
-            <Box
-              ref={!contractDetails.pdf_download_url ? contentRef : null}
-              sx={{
-                border: '1px solid #ccc',
-                p: 2,
-                mb: 3,
-                maxHeight: '500px',
-                overflowY: 'auto',
-                backgroundColor: '#f9f9f9',
-              }}
-              dangerouslySetInnerHTML={{ __html: contractDetails.content }}
-            />
+        ) : (
+          // If pdf_download_url is NOT available, show an alert.
+          // The logic to display contractDetails.content has been removed as 'content' is no longer part of PublicContractDetails.
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            The contract document (PDF) is currently unavailable. Please try again later or contact support.
+          </Alert>
         )}
         
         {!isAlreadySigned && (

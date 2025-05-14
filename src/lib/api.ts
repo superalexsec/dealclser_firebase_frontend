@@ -833,7 +833,6 @@ export interface PublicContractDetails {
     client_phone_number: string; // Needed for signing payload
     status: ContractStatus; // Current status - Confirmed present in latest test
     signed_at: string | null; // Confirmed present (null if not signed)
-    content?: string | null; // HTML content - Still appears absent, keep optional or remove after clarification
 }
 
 export interface DeviceInfo {
