@@ -13,8 +13,13 @@ This application provides the user interface for tenants to manage their WhatsAp
 *   **Client Management:** View, add, edit, and delete client records.
 *   **Product Catalog:** Manage product categories and individual products (name, description, price, active status).
 *   **Cart Management:** View and manually add items to specific client carts.
-*   **Settings & Profile:** Manage tenant account details, API configurations (WhatsApp Business, Dropbox Sign), and user profile information.
-*   **(Placeholders):** Calendar Integration, PDF Generation/Signing.
+*   **Calendar & Scheduling:** 
+    *   View appointments on a monthly, weekly, or daily calendar.
+    *   Add new appointments for clients, including client search and slot availability checks.
+    *   View details of existing appointments.
+    *   Configure calendar settings (name, working hours, default appointment duration) via the Settings page.
+*   **Settings & Profile:** Manage tenant account details, API configurations (WhatsApp Business, Mercado Pago, Calendar), and user profile information.
+*   **(Placeholders):** PDF Generation/Signing.
 
 ## Tech Stack
 
@@ -26,6 +31,8 @@ This application provides the user interface for tenants to manage their WhatsAp
     *   Server State: TanStack Query (React Query) v5
     *   Client State: React Context API (for Auth)
 *   **API Client:** Axios
+*   **Calendar Display:** React Big Calendar
+*   **Date Utilities:** date-fns
 *   **Drag & Drop:** react-beautiful-dnd
 *   **Styling:** MUI (primarily)
 

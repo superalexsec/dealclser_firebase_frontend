@@ -967,12 +967,185 @@ export const fetchPublicContractDetails = async (contractDbId: string): Promise<
 
 // Sign a contract (Public endpoint)
 export const signContract = async (contractDbId: string, payload: ContractSigningPayload): Promise<ContractSigningResponse> => {
-    try {
-        const { data } = await apiClient.post<ContractSigningResponse>(`/contract-api/sign/${contractDbId}`, payload);
-        return data;
-    } catch (error) {
-        console.error(`Error signing contract ${contractDbId}:`, error);
-        // Consider more specific error handling based on status codes (400, 404, 409)
-        throw error;
-    }
+    // Fetch without token as it's a public-facing signing page
+    const { data } = await apiClient.post<ContractSigningResponse>(`/contracts/public/${contractDbId}/sign`, payload);
+    return data;
+}; 
+
+// --- Calendar Service Types ---
+
+// From schemas.FrontendTenantCalendarSettingsCreate
+export interface FrontendTenantCalendarSettingsCreate {
+  calendar_name: string;
+  max_concurrent_events?: number;
+  timezone?: string;
+  appointment_duration_minutes?: number;
+  working_periods?: Array<{
+    day_of_week: number; // 0 (Sunday) to 6 (Saturday)
+    start_time: string; // "HH:MM:SS"
+    end_time: string;   // "HH:MM:SS"
+    is_active: boolean;
+  }>;
+}
+
+// From schemas.TenantCalendarSettingsResponse (simplified for POST response)
+export interface TenantCalendarSettingsPostResponse {
+  calendar_id: string; 
+}
+
+// From schemas.TenantCalendarInfo (for GET /settings)
+export interface WorkingPeriod {
+  id: string; // <working_period_uuid>
+  day_of_week: number;
+  start_time: string; // "HH:MM:SS"
+  end_time: string;   // "HH:MM:SS"
+  is_active: boolean;
+}
+
+export interface TenantCalendarInfo {
+  calendar_id: string; // <calendar_service_uuid>
+  tenant_id: string; // <tenant_app_uuid>
+  calendar_name?: string; // Added this as it seems to be part of settings
+  max_concurrent_events: number;
+  timezone: string;
+  appointment_duration_minutes: number;
+  working_periods: WorkingPeriod[];
+}
+
+// From schemas.CheckSlotAvailabilityRequestFrontend
+export interface CheckSlotAvailabilityRequestFrontend {
+  start_datetime: string; // Naive datetime string "YYYY-MM-DDTHH:MM:SS"
+  duration_minutes: number; // Must match tenant's configured appointment_duration_minutes
+}
+
+// From schemas.SlotAvailabilityResponse
+export interface SlotAvailabilityResponse {
+  is_available: boolean;
+  requested_start_datetime: string;
+  requested_end_datetime: string;
+  message: string;
+}
+
+// From schemas.AppointmentCreateFrontend
+export interface AppointmentCreateFrontend {
+  client_phone_number: string; // Phone number of an existing client of the tenant
+  start_time: string; // UTC or timezone-aware datetime string "YYYY-MM-DDTHH:MM:SSZ"
+  end_time: string;   // Must be start_time + tenant's appointment_duration_minutes
+  description?: string;
+}
+
+// From schemas.AppointmentResponse
+export interface AppointmentResponse {
+  appointment_id: string; // <appointment_uuid>
+  status: string; // e.g., "confirmed"
+  tenant_id: string; // <tenant_app_uuid>
+  start_time: string; // UTC or timezone-aware datetime string
+  end_time: string;   // UTC or timezone-aware datetime string
+  description?: string | null;
+  client_name: string; // Fetched by Calendar Service
+  client_phone_number: string;
+  client_address?: string | null; // Optional, fetched by Calendar Service
+  calendar_event_id: string; // <calendar_service_event_id>
+}
+
+// From schemas.AppointmentCancelResponse
+export interface AppointmentCancelResponse {
+  status: string; // e.g., "cancelled"
+}
+
+
+// --- Calendar Service API Functions ---
+
+// 1. Create or Update Tenant Calendar Settings
+export const createOrUpdateTenantCalendarSettings = async (
+  settings: FrontendTenantCalendarSettingsCreate,
+  token: string | null
+): Promise<TenantCalendarSettingsPostResponse> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.post<TenantCalendarSettingsPostResponse>(
+    '/api/v1/calendar/settings',
+    settings,
+    config
+  );
+  return data;
+};
+
+// 2. Get Tenant Calendar Information
+export const getTenantCalendarInfo = async (
+  token: string | null
+): Promise<TenantCalendarInfo> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.get<TenantCalendarInfo>(
+    '/api/v1/calendar/settings',
+    config
+  );
+  return data;
+};
+
+// 3. Check Specific Slot Availability
+export const checkSlotAvailability = async (
+  payload: CheckSlotAvailabilityRequestFrontend,
+  token: string | null
+): Promise<SlotAvailabilityResponse> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.post<SlotAvailabilityResponse>(
+    '/api/v1/calendar/availability/check',
+    payload,
+    config
+  );
+  return data;
+};
+
+// 4. Create Appointment
+export const createAppointment = async (
+  appointmentData: AppointmentCreateFrontend,
+  token: string | null
+): Promise<AppointmentResponse> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.post<AppointmentResponse>(
+    '/api/v1/calendar/appointments',
+    appointmentData,
+    config
+  );
+  return data;
+};
+
+// 5. Get Appointment Details
+export const getAppointmentDetails = async (
+  appointmentId: string,
+  token: string | null
+): Promise<AppointmentResponse> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.get<AppointmentResponse>(
+    `/api/v1/calendar/appointments/${appointmentId}`,
+    config
+  );
+  return data;
+};
+
+// 6. Cancel Appointment
+export const cancelAppointment = async (
+  appointmentId: string,
+  token: string | null
+): Promise<AppointmentCancelResponse> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.delete<AppointmentCancelResponse>(
+    `/api/v1/calendar/appointments/${appointmentId}`,
+    config
+  );
+  return data;
+};
+
+// 7. List Tenant Appointments for Date Range
+export const listTenantAppointments = async (
+  startDate: string, // YYYY-MM-DD
+  endDate: string,   // YYYY-MM-DD
+  token: string | null
+): Promise<AppointmentResponse[]> => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const { data } = await apiClient.get<AppointmentResponse[]>(
+    '/api/v1/calendar/appointments',
+    { ...config, params: { start_date: startDate, end_date: endDate } }
+  );
+  return data;
 }; 
