@@ -967,9 +967,14 @@ export const fetchPublicContractDetails = async (contractDbId: string): Promise<
 
 // Sign a contract (Public endpoint)
 export const signContract = async (contractDbId: string, payload: ContractSigningPayload): Promise<ContractSigningResponse> => {
-    // Fetch without token as it's a public-facing signing page
-    const { data } = await apiClient.post<ContractSigningResponse>(`/contracts/public/${contractDbId}/sign`, payload);
-    return data;
+    try {
+        // Corrected endpoint path below
+        const { data } = await apiClient.post<ContractSigningResponse>(`/contract-api/sign/${contractDbId}`, payload);
+        return data;
+    } catch (error) {
+        console.error('Error signing contract:', error);
+        throw error;
+    }
 }; 
 
 // --- Calendar Service Types ---
