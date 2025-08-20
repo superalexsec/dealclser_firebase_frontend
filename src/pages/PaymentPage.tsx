@@ -42,10 +42,8 @@ const PaymentPage: React.FC = () => {
                 // The Tenant Backend team confirmed this endpoint is public,
                 // and sessionId acts as a temporary capability token.
                 const response = await axios.get<BricksDetailsResponse>(
-                    // IMPORTANT: Replace with your actual API base URL if this is not a relative path
-                    // For example: `${process.env.REACT_APP_API_URL}/api/v1/payment-sessions/${sessionId}/bricks-details`
-                    // Assuming /api/v1 is served from the same domain as the frontend for now.
-                    `https://tenant-app-backend-804135020956.us-central1.run.app/api/v1/payment-sessions/${sessionId}/bricks-details`
+                    // Use the new backend URL for payment sessions
+                    `https://tenant-app-backend-435738377787.southamerica-east1.run.app/api/v1/payment-sessions/${sessionId}/bricks-details`
                 );
                 // Ensure total_amount is a number
                 const data = response.data;

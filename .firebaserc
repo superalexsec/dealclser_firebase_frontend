@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "dealcloser-540f5"
-  }
+    "default": "messagingtextbotfrontend",
+    "prod": "messagingtextbotfrontend"
+  },
+  "targets": {},
+  "etags": {}
 }
