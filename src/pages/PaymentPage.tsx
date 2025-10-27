@@ -39,11 +39,14 @@ const PaymentPage: React.FC = () => {
             try {
                 setIsLoading(true);
                 setError(null);
-                // The Tenant Backend team confirmed this endpoint is public,
-                // and sessionId acts as a temporary capability token.
+                const backendUrl = process.env.REACT_APP_BACKEND_URL;
+                if (!backendUrl) {
+                    console.error("Backend URL is not defined. Please set REACT_APP_BACKEND_URL.");
+                    // Optionally, show an error to the user
+                    return;
+                }
                 const response = await axios.get<BricksDetailsResponse>(
-                    // Use the new backend URL for payment sessions
-                    `https://tenant-app-backend-435738377787.southamerica-east1.run.app/api/v1/payment-sessions/${sessionId}/bricks-details`
+                    `${backendUrl}/api/v1/payment-sessions/${sessionId}/bricks-details`
                 );
                 // Ensure total_amount is a number
                 const data = response.data;

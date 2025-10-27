@@ -30,18 +30,18 @@ gcloud builds submit --config cloudbuild.yaml
 Always check the logs after complete building to possible troubleshooting:
 gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=zap-app" --limit=50 | cat
 
-You can use the following sample to query the DB and make the code comply (or the DB): DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.44.255.179 port=5432 dbname=whatsapp_db user=dealcloser" -c "\dt" | cat
+You can use the following sample to query the DB and make the code comply (or the DB): DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.95.239.158 port=5432 dbname=whatsapp_db user=dealcloser" -c "\dt" | cat
 
 You can check module flow using this sample:
-DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.44.255.179 port=5432 dbname=whatsapp_db user=dealcloser" -c "SELECT tmo.tenant_id, m.name as module_name, tmo.order_position, tmo.is_active FROM tenant_module_order tmo JOIN modules m ON tmo.module_id = m.id ORDER BY tmo.order_position;" | cat
+DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.95.239.158 port=5432 dbname=whatsapp_db user=dealcloser" -c "SELECT tmo.tenant_id, m.name as module_name, tmo.order_position, tmo.is_active FROM tenant_module_order tmo JOIN modules m ON tmo.module_id = m.id ORDER BY tmo.order_position;" | cat
 
 You can check message flows using this sample:
-DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.44.255.179 port=5432 dbname=whatsapp_db user=dealcloser" -c "SELECT fs.step_number, fs.message_content FROM flow_steps fs WHERE fs.flow_id = '4ea1cc13-9330-43e7-ac87-2264b81f53fe' ORDER BY fs.step_number;" | cat
+DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.95.239.158 port=5432 dbname=whatsapp_db user=dealcloser" -c "SELECT fs.step_number, fs.message_content FROM flow_steps fs WHERE fs.flow_id = '4ea1cc13-9330-43e7-ac87-2264b81f53fe' ORDER BY fs.step_number;" | cat
 
 
 GCP SQL Postgres15
-Connection name:			dealcloser-456014:us-central1:dealcloser-db
-Public IP address:			34.44.255.179
+Connection name:			dealclosermessagebot:southamerica-east1:dealcloserhomolog
+Public IP address:			34.95.239.158
 Default TCP database port number:	5432 
 
 GCP Secret Manager names:

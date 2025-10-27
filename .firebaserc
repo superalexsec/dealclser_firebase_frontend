@@ -1,8 +1,5 @@
 {
   "projects": {
-    "default": "messagingtextbotfrontend",
-    "prod": "messagingtextbotfrontend"
-  },
-  "targets": {},
-  "etags": {}
+    "default": "axalcaval"
+  }
 }
