@@ -174,7 +174,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { 
       text: 'Messaging', 
       icon: <MessageIcon />,
@@ -185,7 +184,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
     { text: 'Client Service', icon: <PeopleIcon />, path: '/client-service' },
     { text: 'Calendar', icon: <CalendarTodayIcon />, path: '/calendar' },
-    { text: 'PDF Service', icon: <PDFIcon />, path: '/pdf-service' },
     { 
       text: 'Contracts',
       icon: <DescriptionIcon />,
@@ -202,7 +200,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         { text: 'Cart', icon: <ShoppingCartIcon />, path: '/cart' },
       ]
     },
-    { text: 'Tenant Info', icon: <BusinessIcon />, path: '/tenant-info' },
     { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
     { text: 'Purchases', icon: <ShoppingBagIcon />, path: '/purchases' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },

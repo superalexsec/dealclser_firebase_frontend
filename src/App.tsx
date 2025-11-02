@@ -5,15 +5,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { theme } from './theme';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
-import Dashboard from './pages/Dashboard';
 import ModuleFlow from './pages/ModuleFlow';
 import MessageFlow from './pages/MessageFlow';
 import Settings from './pages/Settings';
 import ClientService from './pages/ClientService';
 import Calendar from './pages/Calendar';
-import PDFService from './pages/PDFService';
 import Profile from './pages/Profile';
-import TenantInfo from './pages/TenantInfo';
 import Register from './pages/Register';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProductsCatalogPage from './pages/ProductsCatalogPage';
@@ -54,11 +51,6 @@ const App: React.FC = () => {
               <Route path="/contracts/:tenantId/:clientId/:contractDbId" element={<PublicContractSigningPage />} />
               
               {/* Protected routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
               <Route path="/module-flow" element={
                 <ProtectedRoute>
                   <ModuleFlow />
@@ -79,11 +71,6 @@ const App: React.FC = () => {
                   <Calendar />
                 </ProtectedRoute>
               } />
-              <Route path="/pdf-service" element={
-                <ProtectedRoute>
-                  <PDFService />
-                </ProtectedRoute>
-              } />
               <Route path="/settings" element={
                 <ProtectedRoute>
                   <Settings />
@@ -92,11 +79,6 @@ const App: React.FC = () => {
               <Route path="/profile" element={
                 <ProtectedRoute>
                   <Profile />
-                </ProtectedRoute>
-              } />
-              <Route path="/tenant-info" element={
-                <ProtectedRoute>
-                  <TenantInfo />
                 </ProtectedRoute>
               } />
               <Route path="/products" element={

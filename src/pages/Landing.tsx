@@ -111,7 +111,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
       if (isLogin) {
         await loginWithCredentials({ email, password });
         onClose();
-        navigate('/dashboard');
+        navigate('/profile');
       } else {
         console.warn('Registration attempt via AuthDialog');
         const response = await apiClient.post<AuthResponse>('/api/auth/register', {
@@ -124,7 +124,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
         if (response.data.token) {
           login(response.data.token);
           onClose();
-          navigate('/dashboard');
+          navigate('/profile');
         } else {
           throw new Error('Registration via dialog failed');
         }
@@ -143,7 +143,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
       const response = await apiClient.post<AuthResponse>(`/api/auth/${provider}`, { provider });
       login(response.data.token);
       onClose();
-      navigate('/dashboard');
+      navigate('/profile');
     } catch (err: any) {
       console.error("Social Login Error:", err);
       setError(err.response?.data?.message || 'Social login failed.');
