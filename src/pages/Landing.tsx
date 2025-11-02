@@ -34,7 +34,7 @@ import apiClient from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const HeroSection = styled(Box)(({ theme }) => ({
-  background: 'linear-gradient(45deg, #00A884 30%, #128C7E 90%)',
+  background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
   color: 'white',
   padding: theme.spacing(15, 0),
   textAlign: 'center',

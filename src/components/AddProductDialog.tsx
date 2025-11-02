@@ -95,8 +95,8 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                 setLocalError(`Invalid file type(s): ${invalidFiles.map(f => f.name).join(', ')}. Please upload images only.`);
                 return;
             }
-            if (selectedFiles.length + files.length > 3) {
-                setLocalError('You can upload a maximum of 3 images.');
+            if (selectedFiles.length + files.length > 4) {
+                setLocalError('You can upload a maximum of 4 images.');
                 return;
             }
             setSelectedFiles(prevFiles => [...prevFiles, ...files]);
@@ -231,7 +231,7 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
 
                         {/* File Input Section */}
                         <Grid item xs={12}>
-                            <Typography variant="subtitle1" gutterBottom sx={{ mt: 1 }}>Upload Images (Max 3)</Typography>
+                            <Typography variant="subtitle1" gutterBottom sx={{ mt: 1 }}>Upload Images (Max 4)</Typography>
                             <input
                                 accept="image/png, image/jpeg, image/gif, image/webp"
                                 style={{ display: 'none' }}
@@ -239,14 +239,14 @@ const AddProductDialog: React.FC<AddProductDialogProps> = ({
                                 multiple
                                 type="file"
                                 onChange={handleFileChange}
-                                disabled={isSaving || selectedFiles.length >= 3}
+                                disabled={isSaving || selectedFiles.length >= 4}
                             />
                             <label htmlFor="product-image-upload">
                                 <FileInputArea>
                                     <UploadFileIcon sx={{ mr: 1 }} />
                                     <Typography variant="body2">
-                                        {selectedFiles.length >= 3 
-                                            ? "Maximum 3 files selected" 
+                                        {selectedFiles.length >= 4 
+                                            ? "Maximum 4 files selected" 
                                             : "Click or Drag & Drop to Upload"}
                                     </Typography>
                                 </FileInputArea>

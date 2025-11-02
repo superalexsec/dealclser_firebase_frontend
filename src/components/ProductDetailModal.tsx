@@ -202,9 +202,9 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         const files = event.target.files;
         if (files && files.length > 0) {
             const currentImageCount = currentProduct.image_urls?.length || 0;
-            const availableSlots = 3 - currentImageCount;
+            const availableSlots = 4 - currentImageCount;
             if (files.length > availableSlots) {
-                setImageOpError(`Cannot upload ${files.length} images. Only ${availableSlots} slot(s) available (max 3 images).`);
+                setImageOpError(`Cannot upload ${files.length} images. Only ${availableSlots} slot(s) available (max 4 images).`);
                 event.target.value = ''; 
                 return;
             }
@@ -322,7 +322,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                     variant="outlined"
                                     component="label"
                                     startIcon={<AddPhotoAlternateIcon />}
-                                    disabled={isAddingImage || isDeletingImage || (currentProduct.image_urls?.length || 0) >= 3}
+                                    disabled={isAddingImage || isDeletingImage || (currentProduct.image_urls?.length || 0) >= 4}
                                 >
                                     Add Image(s)
                                     <input
@@ -334,7 +334,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                     />
                                 </Button>
                                 <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                    Max 3 images. {(currentProduct.image_urls?.length || 0)} currently uploaded.
+                                    Max 4 images. {(currentProduct.image_urls?.length || 0)} currently uploaded.
                                 </Typography>
                             </Box>
                         )}
