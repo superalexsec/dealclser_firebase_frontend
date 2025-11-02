@@ -76,6 +76,7 @@ export interface TenantData {
   created_at: string;
   updated_at: string;
   client_register_custom_question?: string | null;
+  logo_filename?: string | null;
 }
 
 export interface TenantUpdate {
@@ -976,6 +977,31 @@ export const signContract = async (contractDbId: string, payload: ContractSignin
         throw error;
     }
 }; 
+
+// --- ADD NEW: Tenant Branding API Functions ---
+
+/**
+ * Uploads a new logo for the tenant.
+ * The backend handles file storage and returns the public URL.
+ * @param file The image file to upload.
+ * @param token The authentication token for the tenant.
+ * @returns An object containing the public URL of the uploaded logo.
+ */
+export const uploadTenantLogo = async (file: File, token: string | null): Promise<{ public_url: string }> => {
+    if (!token) throw new Error('Authentication token is required to upload a logo.');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // The interceptor will add the Authorization header, but we must set Content-Type for multipart.
+    const { data } = await apiClient.post('/tenant/branding/logo', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+             Authorization: `Bearer ${token}` // Explicitly passing for clarity
+        }
+    });
+    return data;
+};
 
 // --- Calendar Service Types ---
 

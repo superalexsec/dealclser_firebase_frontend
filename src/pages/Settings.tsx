@@ -37,6 +37,9 @@ import apiClient, {
     WorkingPeriod,
     getTenantCalendarInfo,
     createOrUpdateTenantCalendarSettings,
+    fetchTenantData,
+    TenantData,
+    uploadTenantLogo,
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -65,6 +68,136 @@ function TabPanel(props: TabPanelProps) {
     </div>
   );
 }
+
+const BrandingTab: React.FC = () => {
+    const { token } = useAuth();
+    const queryClient = useQueryClient();
+
+    const { data: tenantData, isLoading: isLoadingTenant } = useQuery<TenantData, Error>({
+        queryKey: ['tenantData', token],
+        queryFn: () => fetchTenantData(token),
+        enabled: !!token,
+    });
+
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+    const mutation = useMutation<{ public_url: string }, Error, File>({
+        mutationFn: (file) => uploadTenantLogo(file, token),
+        onSuccess: (data) => {
+            // Manually update the cache to show the new logo immediately
+            queryClient.setQueryData(['tenantData', token], (oldData: TenantData | undefined) => {
+                if (oldData) {
+                    return { ...oldData, logo_filename: data.public_url };
+                }
+                return oldData;
+            });
+
+            setSelectedFile(null);
+            setPreviewUrl(null);
+            alert('Logo uploaded successfully!');
+        },
+        onError: (error) => {
+            alert(`Error uploading logo: ${error.message}`);
+        }
+    });
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            const file = event.target.files[0];
+            setSelectedFile(file);
+            setPreviewUrl(URL.createObjectURL(file));
+        }
+    };
+
+    const handleUpload = () => {
+        if (selectedFile) {
+            mutation.mutate(selectedFile);
+        }
+    };
+
+    if (isLoadingTenant) {
+        return <CircularProgress />;
+    }
+
+    const currentLogoUrl = tenantData?.logo_filename;
+
+    return (
+        <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+                Company Logo
+            </Typography>
+            <Grid container spacing={3} alignItems="center">
+                <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle1" gutterBottom>Current Logo</Typography>
+                    <Box
+                        sx={{
+                            width: 150,
+                            height: 150,
+                            border: '1px dashed grey',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        {currentLogoUrl ? (
+                            <img src={currentLogoUrl} alt="Current Logo" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                        ) : (
+                            <Typography variant="caption" color="textSecondary">No Logo</Typography>
+                        )}
+                    </Box>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                    <Typography variant="subtitle1" gutterBottom>New Logo Preview</Typography>
+                     <Box
+                        sx={{
+                            width: 150,
+                            height: 150,
+                            border: '1px dashed grey',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        {previewUrl ? (
+                            <img src={previewUrl} alt="New Logo Preview" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                        ) : (
+                            <Typography variant="caption" color="textSecondary">Select a file</Typography>
+                        )}
+                    </Box>
+                </Grid>
+                 <Grid item xs={12} sm={4}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+                        <Button
+                            variant="contained"
+                            component="label"
+                        >
+                            Select Logo
+                            <input
+                                type="file"
+                                hidden
+                                accept="image/png, image/jpeg, image/gif"
+                                onChange={handleFileChange}
+                            />
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleUpload}
+                            disabled={!selectedFile || mutation.isPending}
+                        >
+                            {mutation.isPending ? <CircularProgress size={24} /> : 'Upload'}
+                        </Button>
+                    </Box>
+                </Grid>
+            </Grid>
+        </Paper>
+    );
+};
 
 function a11yProps(index: number) {
   return {
@@ -594,6 +727,7 @@ const Settings = () => {
           <Tab label="WhatsApp Business" {...a11yProps(0)} />
           <Tab label="Mercado Pago" {...a11yProps(1)} />
           <Tab label="Calendar" {...a11yProps(2)} /> 
+          <Tab label="Branding" {...a11yProps(3)} />
         </Tabs>
       </Paper>
 
@@ -827,6 +961,9 @@ const Settings = () => {
       </TabPanel>
       <TabPanel value={tabValue} index={2}>
         <CalendarSettingsTab />
+      </TabPanel>
+      <TabPanel value={tabValue} index={3}>
+        <BrandingTab />
       </TabPanel>
     </Box>
   );

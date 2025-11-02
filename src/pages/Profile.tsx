@@ -59,8 +59,6 @@ const Profile = () => {
     queryKey: ['tenantData', token],
     queryFn: () => fetchTenantData(token),
     enabled: !!token,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
