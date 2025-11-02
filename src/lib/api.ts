@@ -902,7 +902,12 @@ export const updateExistingContractTemplate = async (payload: ContractTemplateUp
 };
 
 // --- Placeholder --- Fetch list of client contracts (Backend endpoint TBD)
-export const fetchClientContracts = async (token?: string | null): Promise<ClientContractListItem[]> => {
+export const fetchClientContracts = async (
+    token: string | null,
+    skip: number = 0,
+    limit: number = 10,
+    search: string = ''
+): Promise<ClientContractListItem[]> => {
     // console.warn('fetchClientContracts: Backend endpoint /contract-api/contracts/ is not yet available.');
     // Return mock data or empty array
     // await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
@@ -917,7 +922,20 @@ export const fetchClientContracts = async (token?: string | null): Promise<Clien
         console.warn('fetchClientContracts called without a token.');
         return []; 
     }
-    const config = { headers: { Authorization: `Bearer ${token}` } };
+
+    const params = new URLSearchParams({
+        skip: skip.toString(),
+        limit: limit.toString(),
+    });
+
+    if (search) {
+        params.append('search', search);
+    }
+
+    const config = { 
+        headers: { Authorization: `Bearer ${token}` },
+        params,
+    };
     const { data } = await apiClient.get<ClientContractListItem[]>('/contract-api/contracts/', config);
     return data;
 };
