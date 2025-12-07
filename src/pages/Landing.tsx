@@ -308,6 +308,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
 };
 
 const Landing: React.FC = () => {
+  const theme = useTheme();
   const [authOpen, setAuthOpen] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(true);
   const navigate = useNavigate();
@@ -350,11 +351,11 @@ const Landing: React.FC = () => {
       <HeroSection>
         <Container maxWidth="md">
           <img
-            src="/zap_central.png"
-            alt="ZapCentral Logo"
-            style={{ width: '200px', marginBottom: '2rem' }}
+            src="/logo_main.png"
+            alt="Próximo Negócio Logo"
+            style={{ width: '100%', maxWidth: '300px', marginBottom: '2rem' }}
           />
-          <Typography variant="h2" component="h1" gutterBottom>
+          <Typography variant={useMediaQuery(theme.breakpoints.down('sm')) ? 'h4' : 'h2'} component="h1" gutterBottom>
             {t('landing.title')}
           </Typography>
           <Typography variant="h5" component="p" color="rgba(255, 255, 255, 0.8)" gutterBottom>

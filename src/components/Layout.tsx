@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { styled } from '@mui/material/styles';
+import { styled, useTheme } from '@mui/material/styles';
 import {
   AppBar,
   Box,
@@ -17,6 +17,7 @@ import {
   Button,
   Menu,
   MenuItem,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -119,7 +120,9 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const [open, setOpen] = useState(true);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [open, setOpen] = useState(!isMobile);
   const [messagingOpen, setMessagingOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
   const [contractsOpen, setContractsOpen] = useState(false);
@@ -249,8 +252,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            DealCloser
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+            <img src="/icons/logo256.png" alt="Logo" style={{ height: '32px', marginRight: '10px' }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {isMobile ? 'Próximo' : 'Próximo Negócio'}
+            </span>
           </Typography>
           
           <Button
@@ -288,9 +294,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             boxSizing: 'border-box',
           },
         }}
-        variant="persistent"
+        variant={isMobile ? "temporary" : "persistent"}
         anchor="left"
         open={open}
+        onClose={isMobile ? handleDrawerToggle : undefined}
       >
         <DrawerHeader>
           <IconButton onClick={handleDrawerToggle}>
@@ -349,7 +356,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ))}
         </List>
       </Drawer>
-      <Main open={open}>
+      <Main open={open} style={{ marginLeft: isMobile ? 0 : undefined, width: '100%' }}>
         <DrawerHeader />
         {children}
       </Main>

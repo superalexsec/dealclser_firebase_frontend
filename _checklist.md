@@ -1,42 +1,36 @@
-# Checklist for Adding PT-BR Translation
+# Checklist for Mobile Polish (PT-BR Focus)
 
-The goal is to implement Brazilian Portuguese (PT-BR) translation with minimum code changes, focusing on fixing any failed attempts and leveraging existing libraries.
+Goal: Improve mobile friendliness for all pages, specifically addressing layout issues caused by longer Portuguese text, while preserving the desktop experience.
 
-## 1. Analysis
-- [x] **Current State:** No i18n library installed. `date-fns` and `@mui/material` are present.
-- [x] **Findings:**
-    - `src/pages/Calendar.tsx` hardcodes `en-US` locale.
-    - `src/pages/PaymentPage.tsx` has a commented out reference to `pt-BR`.
-    - `date-fns` is the primary date library.
+- [ ] **1. Analysis & Strategy**
+    - [ ] Review key pages for potential text overflow/wrapping issues.
+    - [ ] Identify fixed widths or non-responsive containers.
 
-## 2. Implementation Steps
+- [ ] **2. Navigation & Layout (`Layout.tsx`)**
+    - [ ] Verify Drawer menu item text wrapping (long words like "Configurações").
+    - [ ] Check AppBar title and user menu on small screens.
 
-### Phase 1: Date & Calendar Localization (High Priority)
-- [x] **Import Locale:** Import `ptBR` from `date-fns/locale/pt-BR` in `src/pages/Calendar.tsx`.
-- [x] **Update Localizer:** Add `pt-BR` to the `locales` object in `src/pages/Calendar.tsx`.
-- [x] **Set Default:** Set the default locale for `BigCalendar` to `pt-BR`.
-- [x] **Verify Formats:** Ensure date formats (e.g., `dd/MM/yyyy`) are culturally appropriate.
+- [ ] **3. Settings Page (`Settings.tsx`)**
+    - [ ] Fix Tabs layout: Ensure tabs are scrollable or stack on mobile (Labels like "WhatsApp Business", "Mercado Pago" can be wide).
+    - [ ] Ensure form fields in settings panels stack correctly.
 
-### Phase 2: UI Component Localization (MUI)
-- [x] **Import MUI Locale:** Import `ptBR` from `@mui/material/locale`.
-- [x] **Update Theme:** Inject the `ptBR` locale into the `createTheme` call in `src/theme.ts` or `src/App.tsx`.
+- [ ] **4. Client Service & Tables (`ClientService.tsx`)**
+    - [ ] Optimize Client list/table for mobile (often breaks with columns like Email, Phone, ID).
+    - [ ] Consider Card view for mobile instead of Table, or scrollable container.
 
-### Phase 3: Text Content Translation (MVP)
-- [x] **Strategy:** Installed `i18next` and `react-i18next`.
-- [x] **Action:** Created `src/i18n.ts`.
-- [x] **Language Switcher:** Added a language switcher (EN/PT) to `src/components/Layout.tsx`.
-- [x] **Calendar Translation:** Implemented `useTranslation` in `src/pages/Calendar.tsx`.
+- [ ] **5. Products Catalog (`ProductsCatalogPage.tsx`)**
+    - [ ] Review Product Cards grid responsiveness.
+    - [ ] Check "Add Category" / "Add Product" button grouping.
 
-### Phase 4: Full App Translation (Current Focus)
-- [ ] **Fix Default Language:** Force PT-BR as the initial default language in `src/i18n.ts` (currently defaulting to browser language/EN).
-- [ ] **Landing Page:** Translate `src/pages/Landing.tsx`.
-- [ ] **Settings Page:** Translate `src/pages/Settings.tsx`.
-- [ ] **Client Service:** Translate `src/pages/ClientService.tsx` (Table headers, buttons).
-- [ ] **Module/Message Flow:** Translate main headers and buttons in `src/pages/ModuleFlow.tsx` and `src/pages/MessageFlow.tsx`.
-- [ ] **Other Pages:** Add translations for `Profile`, `Products`, `Purchases`, `Contracts` as needed for MVP coverage.
+- [ ] **6. Profile & Forms (`Profile.tsx`, `Register.tsx`)**
+    - [ ] Ensure form inputs use full width on mobile (`xs={12}`).
+    - [ ] Check button grouping (Save, Cancel, Delete).
 
-## 3. Verification
-- [ ] **Build:** Run `npm run build` to ensure no errors.
-- [ ] **Visual Check:** Verify app opens in Portuguese by default.
-- [ ] **Visual Check:** Verify navigation to other pages shows translated content.
+- [ ] **7. Calendar (`Calendar.tsx`) - Refinement**
+    - [ ] Check "Verificar Disponibilidade" button length.
+    - [ ] Verify Event Details dialog responsiveness.
+
+- [ ] **8. General Polish**
+    - [ ] Uniform padding/margins on mobile (standardize to `p: 2` or `p: 1.5`).
+    - [ ] Ensure all text is legible and not cut off.
 

@@ -353,8 +353,8 @@ const ProductsCatalogPage: React.FC = () => {
             <Typography variant="h4" gutterBottom>{t('products.title')}</Typography>
 
             {/* Controls: Category Filter & Add Buttons */}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} justifyContent="space-between" alignItems="center">
-                <FormControl sx={{ minWidth: 200, flexGrow: { xs: 1, sm: 0 } }} size="small">
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 3 }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
+                <FormControl sx={{ minWidth: 200, flexGrow: 1 }} size="small">
                     <InputLabel id="category-select-label">{t('products.category')}</InputLabel>
                     <Select
                         labelId="category-select-label"
@@ -371,12 +371,14 @@ const ProductsCatalogPage: React.FC = () => {
                         ))}
                     </Select>
                 </FormControl>
-                <Stack direction="row" spacing={1} justifyContent={{xs: 'flex-start', sm: 'flex-end'}} flexWrap="wrap"> 
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end" flexWrap="wrap" useFlexGap> 
                     <Button 
                         variant="outlined" 
                         onClick={handleOpenAddCategoryDialog}
                         disabled={isAddingCategory} 
                         size="small"
+                        fullWidth={false}
+                        sx={{ width: { xs: '100%', sm: 'auto' } }}
                     >
                         {t('products.add_category')}
                     </Button>
@@ -384,7 +386,7 @@ const ProductsCatalogPage: React.FC = () => {
                         variant="outlined" 
                         onClick={handleOpenManageCategoriesDialog}
                         size="small"
-                        sx={{ ml: 1 }}
+                        sx={{ ml: { xs: 0, sm: 1 }, mt: { xs: 1, sm: 0 }, width: { xs: '100%', sm: 'auto' } }}
                     >
                         {t('products.manage_categories')}
                     </Button>
@@ -393,6 +395,8 @@ const ProductsCatalogPage: React.FC = () => {
                         onClick={handleOpenAddProductDialog}
                         disabled={isAddingProduct || categories.length === 0} 
                         size="small"
+                        fullWidth={false}
+                        sx={{ width: { xs: '100%', sm: 'auto' } }}
                     >
                         {t('products.add_product')}
                     </Button>

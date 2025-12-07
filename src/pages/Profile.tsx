@@ -289,10 +289,11 @@ const Profile = () => {
               </ListItem>
             </List>
 
-            <Box sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ mt: 4, pt: 2, borderTop: 1, borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', gap: 2 }}>
                  {isEditing ? (
-                     <Box sx={{ display: 'flex', gap: 2 }}>
+                     <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', sm: 'auto' } }}>
                          <Button
+                             fullWidth
                              variant="outlined"
                              startIcon={<CancelIcon />}
                              onClick={handleCancel}
@@ -301,6 +302,7 @@ const Profile = () => {
                              {t('common.cancel')}
                          </Button>
                          <Button
+                             fullWidth
                              variant="contained"
                              color="primary"
                              startIcon={<SaveIcon />}
@@ -316,12 +318,14 @@ const Profile = () => {
                          startIcon={<EditIcon />}
                          onClick={handleEdit}
                          disabled={logoutMutation.isPending || deleteMutation.isPending}
+                         fullWidth={false}
+                         sx={{ width: { xs: '100%', sm: 'auto' } }}
                      >
                          {t('profile.edit_profile')}
                      </Button>
                  )}
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', sm: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
                     {!isEditing && (
                         <Button
                           variant="outlined"
@@ -329,6 +333,7 @@ const Profile = () => {
                           startIcon={<LogoutIcon />}
                           onClick={() => logoutMutation.mutate()}
                           disabled={logoutMutation.isPending || deleteMutation.isPending}
+                          fullWidth
                         >
                           {logoutMutation.isPending ? t('profile.logging_out') : t('layout.logout')}
                         </Button>
@@ -340,6 +345,7 @@ const Profile = () => {
                       startIcon={<DeleteIcon />}
                       onClick={handleDeleteClick}
                       disabled={deleteMutation.isPending || isEditing || logoutMutation.isPending}
+                      fullWidth
                     >
                       {deleteMutation.isPending ? t('profile.deleting') : t('profile.delete_account')}
                     </Button>

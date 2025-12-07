@@ -24,6 +24,8 @@ import {
   SelectChangeEvent,
   CircularProgress,
   Skeleton,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -61,6 +63,8 @@ interface StepUI {
 }
 
 const MessageFlow = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const queryClient = useQueryClient();
   const { token } = useAuth();
   const { t } = useTranslation();
@@ -412,35 +416,53 @@ const MessageFlow = () => {
                             </Box>
                             <ListItemText
                                primary={`${index + 1}. ${step.message_content}`}
+                               primaryTypographyProps={{
+                                   style: { 
+                                       whiteSpace: 'normal', 
+                                       wordBreak: 'break-word',
+                                       paddingRight: isMobile ? '48px' : '96px' // Make space for buttons
+                                   }
+                               }}
                             />
-                            <ListItemSecondaryAction>
-                              <IconButton
+                            <ListItemSecondaryAction sx={{ 
+                                display: 'flex', 
+                                flexDirection: isMobile ? 'column' : 'row',
+                                top: isMobile ? '50%' : '50%',
+                                transform: isMobile ? 'translateY(-50%)' : 'translateY(-50%)'
+                            }}>
+                              <Box sx={{ display: isMobile ? 'none' : 'flex' }}>
+                                <IconButton
                                  onClick={() => handleMoveStep(step.id, 'up')}
                                  disabled={index === 0 || isUpdatingSteps || !isEditingAllowed}
                                  aria-label={t('message_flow.move_up')}
-                              >
-                                <ArrowUpIcon />
-                              </IconButton>
-                              <IconButton
+                                 size={isMobile ? "small" : "medium"}
+                                >
+                                  <ArrowUpIcon fontSize={isMobile ? "small" : "medium"} />
+                                </IconButton>
+                                <IconButton
                                  onClick={() => handleMoveStep(step.id, 'down')}
                                  disabled={index === steps.length - 1 || isUpdatingSteps || !isEditingAllowed}
                                  aria-label={t('message_flow.move_down')}
-                              >
-                                <ArrowDownIcon />
-                              </IconButton>
+                                 size={isMobile ? "small" : "medium"}
+                                >
+                                  <ArrowDownIcon fontSize={isMobile ? "small" : "medium"} />
+                                </IconButton>
+                              </Box>
                                <IconButton 
                                  onClick={() => handleEditStep(step)} 
                                  disabled={isUpdatingSteps || !isEditingAllowed}
                                  aria-label={t('message_flow.edit_step')}
+                                 size={isMobile ? "small" : "medium"}
                                >
-                                 <EditIcon />
+                                 <EditIcon fontSize={isMobile ? "small" : "medium"} />
                                </IconButton>
                                <IconButton 
                                  onClick={() => handleDeleteStep(step.id)} 
                                  disabled={isUpdatingSteps || !isEditingAllowed}
                                  aria-label={t('message_flow.delete_step')}
+                                 size={isMobile ? "small" : "medium"}
                                >
-                                 <DeleteIcon />
+                                 <DeleteIcon fontSize={isMobile ? "small" : "medium"} />
                                </IconButton>
                             </ListItemSecondaryAction>
                           </ListItem>

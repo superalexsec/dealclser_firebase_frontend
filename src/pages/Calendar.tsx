@@ -21,6 +21,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { Add as AddIcon, Close as CloseIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { Calendar as BigCalendar, dateFnsLocalizer, EventProps, View, NavigateAction } from 'react-big-calendar';
@@ -90,12 +92,14 @@ const filterOptions = createFilterOptions<Client>({
 });
 
 const CalendarPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
 
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
+  const [view, setView] = useState<'month' | 'week' | 'day' | 'agenda'>('month');
   
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
@@ -291,11 +295,11 @@ const CalendarPage: React.FC = () => {
   if (isLoadingCalendarSettings) return <CircularProgress />;
 
   return (
-    <Box sx={{ p: 3, height: 'calc(100vh - 120px)' }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4">{t('calendar.title')}</Typography>
-        <Box display="flex" alignItems="center" gap={2}>
-            <FormControl sx={{ minWidth: 220 }} size="small">
+      <Box sx={{ p: 3, height: 'calc(100vh - 120px)', overflowY: 'auto' }}>
+        <Box display="flex" flexDirection={isMobile ? 'column' : 'row'} justifyContent="space-between" alignItems="center" mb={2} gap={2}>
+          <Typography variant="h4">{t('calendar.title')}</Typography>
+          <Box display="flex" alignItems="center" gap={2} flexDirection={isMobile ? 'column' : 'row'} width={isMobile ? '100%' : 'auto'}>
+              <FormControl sx={{ minWidth: 220, width: isMobile ? '100%' : 'auto' }} size="small">
                 <InputLabel>{t('calendar.timezone')}</InputLabel>
                 <Select
                     value={selectedTimezone.id}
@@ -310,7 +314,7 @@ const CalendarPage: React.FC = () => {
                     ))}
                 </Select>
             </FormControl>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleSelectSlot({start: new Date()})}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleSelectSlot({start: new Date()})} fullWidth={isMobile}>
               {t('calendar.new_appointment')}
             </Button>
         </Box>
@@ -329,8 +333,8 @@ const CalendarPage: React.FC = () => {
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
             view={view}
-            views={['month', 'week', 'day']}
-            onView={(v) => setView(v as 'month' | 'week' | 'day')}
+            views={['month', 'week', 'day', 'agenda']}
+            onView={(v) => setView(v as 'month' | 'week' | 'day' | 'agenda')}
             date={currentDate}
             onNavigate={(newDate) => setCurrentDate(newDate)}
             culture={i18n.language}

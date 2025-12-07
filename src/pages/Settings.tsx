@@ -457,47 +457,59 @@ const CalendarSettingsTab: React.FC = () => {
         <Grid item xs={12}>
           <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>{t('settings.calendar_config.working_periods')}</Typography>
           {workingPeriods.map((period, index) => (
-            <Paper key={period.id || index} elevation={1} sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <TextField
-                select
-                label={t('settings.calendar_config.day')}
-                value={period.day_of_week || 0}
-                onChange={(e) => handleWorkingPeriodChange(index, 'day_of_week', parseInt(e.target.value,10))}
-                SelectProps={{ native: true }}
-                sx={{minWidth: 100}}
-              >
-                {Object.entries(DayAbbreviations).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </TextField>
-              <TextField
-                label={t('settings.calendar_config.start_time')}
-                type="time"
-                value={(period.start_time || '').substring(0,5)} // Display HH:MM
-                onChange={(e) => handleWorkingPeriodChange(index, 'start_time', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ step: 300 }} // 5 min
-                sx={{minWidth: 120}}
-              />
-              <TextField
-                label={t('settings.calendar_config.end_time')}
-                type="time"
-                value={(period.end_time || '').substring(0,5)} // Display HH:MM
-                onChange={(e) => handleWorkingPeriodChange(index, 'end_time', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ step: 300 }} // 5 min
-                sx={{minWidth: 120}}
-              />
-              <Button 
-                variant={period.is_active ? "contained" : "outlined"}
-                onClick={() => handleWorkingPeriodChange(index, 'is_active', !period.is_active)}
-                sx={{minWidth: 100}}
-              >
-                {period.is_active ? t('common.active') : t('common.inactive')}
-              </Button>
-              <IconButton onClick={() => removeWorkingPeriod(index)} color="error">
-                <CancelIcon />
-              </IconButton>
+            <Paper key={period.id || index} elevation={1} sx={{ p: 2, mb: 2 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={3}>
+                  <TextField
+                    select
+                    fullWidth
+                    label={t('settings.calendar_config.day')}
+                    value={period.day_of_week || 0}
+                    onChange={(e) => handleWorkingPeriodChange(index, 'day_of_week', parseInt(e.target.value,10))}
+                    SelectProps={{ native: true }}
+                  >
+                    {Object.entries(DayAbbreviations).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <TextField
+                    fullWidth
+                    label={t('settings.calendar_config.start_time')}
+                    type="time"
+                    value={(period.start_time || '').substring(0,5)}
+                    onChange={(e) => handleWorkingPeriodChange(index, 'start_time', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ step: 300 }}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <TextField
+                    fullWidth
+                    label={t('settings.calendar_config.end_time')}
+                    type="time"
+                    value={(period.end_time || '').substring(0,5)}
+                    onChange={(e) => handleWorkingPeriodChange(index, 'end_time', e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ step: 300 }}
+                  />
+                </Grid>
+                <Grid item xs={6} sm={2}>
+                  <Button 
+                    fullWidth
+                    variant={period.is_active ? "contained" : "outlined"}
+                    onClick={() => handleWorkingPeriodChange(index, 'is_active', !period.is_active)}
+                  >
+                    {period.is_active ? t('common.active') : t('common.inactive')}
+                  </Button>
+                </Grid>
+                <Grid item xs={6} sm={1} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <IconButton onClick={() => removeWorkingPeriod(index)} color="error">
+                    <CancelIcon />
+                  </IconButton>
+                </Grid>
+              </Grid>
             </Paper>
           ))}
           <Button variant="outlined" onClick={addWorkingPeriod} sx={{ mt: 1 }}>

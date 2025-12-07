@@ -1,21 +1,21 @@
 {
-  "short_name": "Front-end",
-  "name": "Front-end Application",
+  "short_name": "Próximo Negócio",
+  "name": "Próximo Negócio App",
   "icons": [
     {
-      "src": "icons/favicon.svg",
+      "src": "icons/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/favicon-32x32.png",
       "sizes": "32x32",
-      "type": "image/svg+xml"
+      "type": "image/png"
     },
     {
-      "src": "icons/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "icons/logo192.png",
+      "src": "icons/logo256.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "256x256"
     },
     {
       "src": "icons/logo512.png",
@@ -27,4 +27,4 @@
   "display": "standalone",
   "theme_color": "#2196F3",
   "background_color": "#ffffff"
-} 
+}
