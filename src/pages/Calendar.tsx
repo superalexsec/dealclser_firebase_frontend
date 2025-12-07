@@ -17,10 +17,15 @@ import {
   IconButton,
   createFilterOptions,
   Snackbar,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { Add as AddIcon, Close as CloseIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { Calendar as BigCalendar, dateFnsLocalizer, EventProps, View, NavigateAction } from 'react-big-calendar';
 import { format } from 'date-fns/format';
+import { parseISO } from 'date-fns/parseISO';
 import { parse } from 'date-fns/parse';
 import { startOfWeek } from 'date-fns/startOfWeek';
 import { getDay } from 'date-fns/getDay';
@@ -56,11 +61,24 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+// Helper function to convert UTC date to a date object reflecting Brasília time (-3 hours)
+const toBrasiliaTime = (utcDate: Date): Date => {
+  // Subtract 3 hours from the UTC date to get Brasília time
+  return new Date(utcDate.getTime() - (3 * 60 * 60 * 1000));
+};
+
 interface CalendarEvent extends AppointmentResponse {
   title: string;
   start: Date;
   end: Date;
 }
+
+const brazilianTimezones = [
+    { name: 'Brasília (BRT)', offset: -3, id: 'America/Sao_Paulo' },
+    { name: 'Noronha (FNT)', offset: -2, id: 'America/Noronha' },
+    { name: 'Amazonas (AMT)', offset: -4, id: 'America/Manaus' },
+    { name: 'Acre (ACT)', offset: -5, id: 'America/Rio_Branco' },
+];
 
 const filterOptions = createFilterOptions<Client>({
     matchFrom: 'any',
@@ -86,6 +104,7 @@ const CalendarPage: React.FC = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+  const [selectedTimezone, setSelectedTimezone] = useState(brazilianTimezones[0]); // Default to Brasília
 
   const showSnackbar = (message: string, severity: 'success' | 'error') => {
     setSnackbarMessage(message);
@@ -108,7 +127,25 @@ const CalendarPage: React.FC = () => {
       return listTenantAppointments(firstDayOfMonth, lastDayOfMonth, token);
     },
     enabled: !!token && !!calendarSettings?.calendar_id,
-    select: (data) => data.map(app => ({ ...app, title: `${app.client_name} (${app.description || 'Appointment'})`, start: new Date(app.start_time), end: new Date(app.end_time) })),
+    select: (data) => {
+        return data.map(app => {
+            const utcStart = parseISO(app.start_time);
+            const utcEnd = parseISO(app.end_time);
+
+            // To display the correct "wall clock" time, we create a new Date object
+            // that is shifted by the selected timezone's offset. The calendar will
+            // then render the hours and minutes from this new date object.
+            const displayStart = new Date(utcStart.getTime() + (selectedTimezone.offset * 3600 * 1000));
+            const displayEnd = new Date(utcEnd.getTime() + (selectedTimezone.offset * 3600 * 1000));
+
+            return {
+                ...app,
+                title: `${app.client_name} (${app.description || 'Appointment'})`,
+                start: displayStart,
+                end: displayEnd,
+            };
+        });
+    },
   });
 
   const { data: allClients, isLoading: isLoadingClients } = useQuery<Client[], Error>({
@@ -214,15 +251,22 @@ const CalendarPage: React.FC = () => {
         setAvailabilityMessage('Selected slot is not available or availability not checked.');
         return;
     }
-    const startDate = new Date(newAppointmentData.start_time);
-    const endDate = new Date(startDate.getTime() + calendarSettings.appointment_duration_minutes * 60000);
-    const startUTC = new Date(startDate.valueOf() - startDate.getTimezoneOffset() * 60000).toISOString();
-    const endUTC = new Date(endDate.valueOf() - endDate.getTimezoneOffset() * 60000).toISOString();
+    // The start_time is a naive "yyyy-MM-dd'T'HH:mm:ss" string from the input.
+    // We treat this as the "wall clock" time in the selected timezone.
+    const naiveDateString = newAppointmentData.start_time;
+    
+    // Create a Date object from this string as if it were UTC.
+    const naiveUTCDate = new Date(naiveDateString + 'Z');
+
+    // To get the true UTC time, we subtract the selected timezone's offset.
+    const trueUTCTime = new Date(naiveUTCDate.getTime() - (selectedTimezone.offset * 3600 * 1000));
+    
+    const endDate = new Date(trueUTCTime.getTime() + calendarSettings.appointment_duration_minutes * 60000);
 
     createAppointmentMutation.mutate({
       client_phone_number: selectedClient.client_phone_number!,
-      start_time: startUTC,
-      end_time: endUTC,
+      start_time: trueUTCTime.toISOString(),
+      end_time: endDate.toISOString(),
       description: newAppointmentData.description || '',
     });
   };
@@ -246,9 +290,26 @@ const CalendarPage: React.FC = () => {
     <Box sx={{ p: 3, height: 'calc(100vh - 120px)' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h4">Calendar</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleSelectSlot({start: new Date()})}>
-          New Appointment
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+            <FormControl sx={{ minWidth: 220 }} size="small">
+                <InputLabel>Timezone</InputLabel>
+                <Select
+                    value={selectedTimezone.id}
+                    label="Timezone"
+                    onChange={(e) => {
+                        const newTz = brazilianTimezones.find(tz => tz.id === e.target.value);
+                        if (newTz) setSelectedTimezone(newTz);
+                    }}
+                >
+                    {brazilianTimezones.map(tz => (
+                        <MenuItem key={tz.id} value={tz.id}>{tz.name}</MenuItem>
+                    ))}
+                </Select>
+            </FormControl>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleSelectSlot({start: new Date()})}>
+              New Appointment
+            </Button>
+        </Box>
       </Box>
 
       {fetchAppointmentsError && <Alert severity="error">Failed to load appointments: {fetchAppointmentsError.message}</Alert>}
