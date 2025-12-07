@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { fetchClientContracts, ClientContractListItem, ContractStatus, fetchPublicContractDetails } from '../lib/api'; // Import necessary types and fetchPublicContractDetails
+import { fetchClientContracts, ClientContractListItem, ContractStatus, fetchPublicContractDetails } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Box,
@@ -14,16 +14,17 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip, // For displaying status
-  Button, // For View PDF button
-  Link as MuiLink, // For opening link in new tab
+  Chip,
+  Button,
   TablePagination,
   TextField,
   debounce,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 const ClientContractsPage: React.FC = () => {
   const { token } = useAuth();
+  const { t } = useTranslation();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,7 +39,6 @@ const ClientContractsPage: React.FC = () => {
     handler();
     return () => {
       // Cleanup function to cancel the debounce on unmount or searchTerm change
-      // (implementation of cancel would depend on the debounce function used)
     };
   }, [searchTerm]);
 
@@ -49,13 +49,6 @@ const ClientContractsPage: React.FC = () => {
     queryFn: () => fetchClientContracts(token, page * rowsPerPage, rowsPerPage, debouncedSearchTerm),
     enabled: !!token, // Only run query if token is available
   });
-
-  // NOTE: We assume the backend might provide a total count in the future.
-  // For now, we can't show a proper total count without another API call or a modified response.
-  // The pagination will still work for next/previous, but the total number of pages might be inaccurate.
-  // We'll manage with the data we have for now.
-  const totalContracts = contracts?.length === rowsPerPage ? -1 : page * rowsPerPage + (contracts?.length || 0);
-
 
   // Mutation to fetch individual public contract details (for PDF link)
   const { mutate: getViewablePdfLink, isPending: isFetchingPdfLink } = useMutation<string, Error, string>({
@@ -71,7 +64,6 @@ const ClientContractsPage: React.FC = () => {
     },
     onError: (err: Error, contractDbId: string) => {
         console.error(`Error fetching PDF link for contract ${contractDbId}:`, err);
-        // Optionally show a snackbar or alert to the user
         alert(`Could not retrieve PDF link: ${err.message}`);
     },
   });
@@ -83,13 +75,13 @@ const ClientContractsPage: React.FC = () => {
   const getStatusChip = (status: ContractStatus) => {
     switch (status) {
       case ContractStatus.SIGNED:
-        return <Chip label="Signed" color="success" size="small" />;
+        return <Chip label={t('client_contracts.statuses.signed')} color="success" size="small" />;
       case ContractStatus.AWAITING_SIGNATURE:
-        return <Chip label="Awaiting Signature" color="warning" size="small" />;
+        return <Chip label={t('client_contracts.statuses.awaiting')} color="warning" size="small" />;
       case ContractStatus.GENERATED:
-          return <Chip label="Generated" color="info" size="small" />;
+          return <Chip label={t('client_contracts.statuses.generated')} color="info" size="small" />;
        case ContractStatus.ERROR:
-          return <Chip label="Error" color="error" size="small" />;
+          return <Chip label={t('client_contracts.statuses.error')} color="error" size="small" />;
       default:
         return <Chip label={status} size="small" />;
     }
@@ -107,14 +99,14 @@ const ClientContractsPage: React.FC = () => {
   return (
     <Paper sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Client Contracts Status
+        {t('client_contracts.title')}
       </Typography>
 
       <TextField
         fullWidth
         variant="outlined"
-        label="Search Contracts (Client Name, Phone, etc.)"
-        placeholder="Type to search..."
+        label={t('client_contracts.search_placeholder')}
+        placeholder={t('common.search')}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         sx={{ mb: 3 }}
@@ -124,7 +116,7 @@ const ClientContractsPage: React.FC = () => {
       {isLoading && <CircularProgress />}
 
       {/* Display error message if the query fails */}
-      {isError && <Alert severity="error">Error loading contracts: {error?.message || 'Unknown error'}. (Note: Backend endpoint may not be available yet)</Alert>}
+      {isError && <Alert severity="error">{t('common.api_error')}: {error?.message || t('common.unknown_error')}.</Alert>}
 
       {/* Display the table if data is successfully loaded */}
       {!isLoading && !isError && contracts && (
@@ -133,19 +125,19 @@ const ClientContractsPage: React.FC = () => {
           <Table sx={{ minWidth: 650 }} aria-label="client contracts table">
             <TableHead>
               <TableRow>
-                <TableCell>Client Name</TableCell>
-                <TableCell>Client Phone</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Generated At</TableCell>
-                <TableCell>Signed At</TableCell>
-                <TableCell align="right">Actions</TableCell> {/* New column for View PDF button */}
+                <TableCell>{t('client_contracts.client_name')}</TableCell>
+                <TableCell>{t('client_contracts.client_phone')}</TableCell>
+                <TableCell>{t('client_contracts.status')}</TableCell>
+                <TableCell>{t('client_contracts.generated_at')}</TableCell>
+                <TableCell>{t('client_contracts.signed_at')}</TableCell>
+                <TableCell align="right">{t('client_contracts.actions')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {contracts.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} align="center">
-                    {debouncedSearchTerm ? 'No contracts match your search.' : 'No contracts found.'}
+                    {debouncedSearchTerm ? t('client_contracts.no_match') : t('client_contracts.no_contracts')}
                   </TableCell>
                 </TableRow>
               )}
@@ -168,7 +160,7 @@ const ClientContractsPage: React.FC = () => {
                         onClick={() => handleViewPdf(contract.contract_db_id)}
                         disabled={isFetchingPdfLink}
                     >
-                        View PDF
+                        {t('client_contracts.view_pdf')}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -179,7 +171,7 @@ const ClientContractsPage: React.FC = () => {
         <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={-1} // Backend doesn't provide total count, so we use -1 to disable specific page jumps
+            count={-1} // Backend doesn't provide total count
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handlePageChange}
@@ -187,6 +179,7 @@ const ClientContractsPage: React.FC = () => {
             labelDisplayedRows={({ from, to, count }) =>
               `${from}–${to}`
             }
+            labelRowsPerPage={t('common.page')} // Not exact match but ok for now or add new key
           />
         </>
       )}
@@ -194,4 +187,4 @@ const ClientContractsPage: React.FC = () => {
   );
 };
 
-export default ClientContractsPage; 
+export default ClientContractsPage;

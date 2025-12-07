@@ -25,6 +25,7 @@ import { Search as SearchIcon, Info as InfoIcon, Close as CloseIcon } from '@mui
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchClients, Client, fetchPaymentSessions, fetchPaymentSessionDetails, PaymentSession, PaymentSessionDetails } from '../lib/api';
+import { useTranslation } from 'react-i18next';
 
 function getStatusColor(status: string): 'success' | 'warning' | 'error' | 'info' | 'default' {
   const s = status.toLowerCase();
@@ -37,6 +38,7 @@ function getStatusColor(status: string): 'success' | 'warning' | 'error' | 'info
 
 const Purchases: React.FC = () => {
   const { token } = useAuth();
+  const { t } = useTranslation();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -98,7 +100,7 @@ const Purchases: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Purchases (Payment Sessions)
+        {t('purchases.title')}
       </Typography>
       <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
         <Autocomplete
@@ -111,7 +113,7 @@ const Purchases: React.FC = () => {
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Search and Select Client"
+              label={t('cart.search_client')}
               variant="outlined"
               InputProps={{
                 ...params.InputProps,
@@ -133,19 +135,19 @@ const Purchases: React.FC = () => {
       ) : sessionsError ? (
         <Alert severity="error">{sessionsError.message}</Alert>
       ) : sessions.length === 0 && selectedClient ? (
-        <Alert severity="info">No payment sessions found for this client.</Alert>
+        <Alert severity="info">{t('purchases.no_sessions')}</Alert>
       ) : sessions.length > 0 ? (
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Session ID</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Total Amount</TableCell>
-                <TableCell>Payment Method</TableCell>
-                <TableCell>Created At</TableCell>
-                <TableCell>Confirmed At</TableCell>
-                <TableCell>Details</TableCell>
+                <TableCell>{t('purchases.session_id')}</TableCell>
+                <TableCell>{t('common.status')}</TableCell>
+                <TableCell>{t('purchases.total_amount')}</TableCell>
+                <TableCell>{t('purchases.payment_method')}</TableCell>
+                <TableCell>{t('common.created_at')}</TableCell>
+                <TableCell>{t('purchases.confirmed_at')}</TableCell>
+                <TableCell>{t('purchases.details')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -173,7 +175,7 @@ const Purchases: React.FC = () => {
 
       <Dialog open={detailsOpen} onClose={handleCloseDetails} maxWidth="sm" fullWidth>
         <DialogTitle>
-          Payment Session Details
+          {t('purchases.details')}
           <IconButton onClick={handleCloseDetails} sx={{ position: 'absolute', right: 8, top: 8 }}>
             <CloseIcon />
           </IconButton>
@@ -185,30 +187,30 @@ const Purchases: React.FC = () => {
             <Alert severity="error">{detailsError.message}</Alert>
           ) : sessionDetails ? (
             <Box>
-              <Typography variant="subtitle1">Session ID: {sessionDetails.id}</Typography>
+              <Typography variant="subtitle1">{t('purchases.session_id')}: {sessionDetails.id}</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography>Status:</Typography>
+                <Typography>{t('common.status')}:</Typography>
                 <Chip label={sessionDetails.status} color={getStatusColor(sessionDetails.status)} size="small" />
               </Box>
-              <Typography>Total Amount: {sessionDetails.total_amount}</Typography>
-              <Typography>Payment Method: {sessionDetails.selected_payment_method}</Typography>
-              <Typography>Payment Link: {sessionDetails.payment_link}</Typography>
-              <Typography>Created At: {new Date(sessionDetails.created_at).toLocaleString()}</Typography>
-              <Typography>Updated At: {new Date(sessionDetails.updated_at).toLocaleString()}</Typography>
-              <Typography>Confirmed At: {sessionDetails.confirmed_at ? new Date(sessionDetails.confirmed_at).toLocaleString() : '-'}</Typography>
-              <Typography>Client Phone: {sessionDetails.client_phone_number}</Typography>
-              <Typography>Current Step: {sessionDetails.current_step}</Typography>
-              <Typography>External Payment ID: {sessionDetails.payment_id_external}</Typography>
-              <Typography>Preference ID: {sessionDetails.preference_id}</Typography>
+              <Typography>{t('purchases.total_amount')}: {sessionDetails.total_amount}</Typography>
+              <Typography>{t('purchases.payment_method')}: {sessionDetails.selected_payment_method}</Typography>
+              <Typography>{t('purchases.payment_link')}: {sessionDetails.payment_link}</Typography>
+              <Typography>{t('common.created_at')}: {new Date(sessionDetails.created_at).toLocaleString()}</Typography>
+              <Typography>{t('common.updated_at')}: {new Date(sessionDetails.updated_at).toLocaleString()}</Typography>
+              <Typography>{t('purchases.confirmed_at')}: {sessionDetails.confirmed_at ? new Date(sessionDetails.confirmed_at).toLocaleString() : '-'}</Typography>
+              <Typography>{t('client_contracts.client_phone')}: {sessionDetails.client_phone_number}</Typography>
+              <Typography>{t('purchases.current_step')}: {sessionDetails.current_step}</Typography>
+              <Typography>{t('purchases.external_id')}: {sessionDetails.payment_id_external}</Typography>
+              <Typography>{t('purchases.preference_id')}: {sessionDetails.preference_id}</Typography>
             </Box>
           ) : null}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDetails}>Close</Button>
+          <Button onClick={handleCloseDetails}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
 };
 
-export default Purchases; 
+export default Purchases;

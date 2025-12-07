@@ -39,10 +39,12 @@ import {
     CartItemView,
     CartActionResponse,
 } from '../lib/api'; // Adjust path if necessary
+import { useTranslation } from 'react-i18next';
 
 const CartPage: React.FC = () => {
     const { token } = useAuth();
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [quantityToAdd, setQuantityToAdd] = useState<number>(1);
@@ -103,19 +105,19 @@ const CartPage: React.FC = () => {
             if (data.success) {
                 // Invalidate the cart query to refetch fresh data
                 queryClient.invalidateQueries({ queryKey: ['cart', payload.client_id, token] });
-                setSnackbarMessage('Item added to cart.'); 
+                setSnackbarMessage(t('cart.item_added')); 
                 // Reset add form
                 setSelectedProduct(null);
                 setQuantityToAdd(1);
             } else {
                 // Handle backend reporting success: false
-                setSnackbarMessage('Failed to add item to cart. Please try again.'); 
+                setSnackbarMessage(t('cart.error_add')); 
             }
             setShowSnackbar(true); 
         }, 
         onError: (error) => { 
             console.error("Failed to add item to cart:", error); 
-            setSnackbarMessage(`Error adding item: ${error.message}`); 
+            setSnackbarMessage(`${t('cart.error_add')}: ${error.message}`); 
             setShowSnackbar(true); 
         }, 
     });
@@ -126,15 +128,15 @@ const CartPage: React.FC = () => {
         onSuccess: (data, payload) => { 
             if (data.success) {
                 queryClient.invalidateQueries({ queryKey: ['cart', payload.client_id, token] });
-                setSnackbarMessage('Cart item removed.'); 
+                setSnackbarMessage(t('cart.item_removed')); 
             } else {
-                setSnackbarMessage('Failed to remove item. Please try again.'); 
+                setSnackbarMessage(t('cart.error_remove')); 
             }
             setShowSnackbar(true); 
         }, 
         onError: (error) => { 
             console.error("Failed to remove cart item:", error); 
-            setSnackbarMessage(`Error removing item: ${error.message}`); 
+            setSnackbarMessage(`${t('cart.error_remove')}: ${error.message}`); 
             setShowSnackbar(true); 
         }, 
     });
@@ -144,15 +146,15 @@ const CartPage: React.FC = () => {
         onSuccess: (data, payload) => { 
             if (data.success) {
                 queryClient.invalidateQueries({ queryKey: ['cart', payload.client_id, token] });
-                setSnackbarMessage('Cart cleared successfully.'); 
+                setSnackbarMessage(t('cart.cart_cleared')); 
             } else {
-                setSnackbarMessage('Failed to clear cart. Please try again.'); 
+                setSnackbarMessage(t('cart.error_clear')); 
             }
             setShowSnackbar(true); 
         }, 
         onError: (error) => { 
             console.error("Failed to clear cart:", error); 
-            setSnackbarMessage(`Error clearing cart: ${error.message}`); 
+            setSnackbarMessage(`${t('cart.error_clear')}: ${error.message}`); 
             setShowSnackbar(true); 
         }, 
     });
@@ -176,7 +178,7 @@ const CartPage: React.FC = () => {
 
     const handleAddItemClick = () => {
         if (!selectedClient || !selectedProduct || quantityToAdd <= 0) {
-            setSnackbarMessage('Please select a client, product, and valid quantity.');
+            setSnackbarMessage(t('cart.required'));
             setShowSnackbar(true);
             return;
         }
@@ -208,12 +210,12 @@ const CartPage: React.FC = () => {
     return (
         <Box sx={{ p: 3 }}>
             <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                <ShoppingCartIcon sx={{ mr: 1 }} /> Client Cart Management
+                <ShoppingCartIcon sx={{ mr: 1 }} /> {t('cart.title')}
             </Typography>
 
             {/* Client Selection */} 
             <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
-                <Typography variant="h6" gutterBottom>Select Client</Typography>
+                <Typography variant="h6" gutterBottom>{t('cart.select_client')}</Typography>
                 {clientsError && (
                     <Alert severity="error" sx={{ mb: 2 }}>Failed to load clients: {clientsError.message}</Alert>
                 )}
@@ -227,7 +229,7 @@ const CartPage: React.FC = () => {
                     renderInput={(params) => (
                         <TextField 
                             {...params} 
-                            label="Search and Select Client" 
+                            label={t('cart.search_client')} 
                             variant="outlined"
                             InputProps={{
                                 ...params.InputProps,
@@ -246,7 +248,7 @@ const CartPage: React.FC = () => {
             {/* Add Item Section - Only show if client is selected */} 
             {selectedClient && (
                 <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
-                    <Typography variant="h6" gutterBottom>Add Item to Cart for {selectedClient.first_name}</Typography>
+                    <Typography variant="h6" gutterBottom>{t('cart.add_item_title')}</Typography>
                     {productsError && (
                         <Alert severity="warning" sx={{ mb: 2 }}>Could not load product list: {(productsError as Error).message}</Alert>
                     )}
@@ -262,7 +264,7 @@ const CartPage: React.FC = () => {
                                 renderInput={(params) => (
                                     <TextField 
                                         {...params} 
-                                        label="Select Product" 
+                                        label={t('cart.select_product')} 
                                         variant="outlined"
                                         InputProps={{
                                             ...params.InputProps,
@@ -279,7 +281,7 @@ const CartPage: React.FC = () => {
                         </Grid>
                         <Grid item xs={6} sm={3}>
                             <TextField
-                                label="Quantity"
+                                label={t('common.quantity')}
                                 type="number"
                                 value={quantityToAdd}
                                 onChange={handleQuantityChange}
@@ -296,7 +298,7 @@ const CartPage: React.FC = () => {
                                 startIcon={addToCartMutation.isPending ? <CircularProgress size={20} /> : <AddShoppingCartIcon />}
                                 fullWidth
                             >
-                                {addToCartMutation.isPending ? 'Adding...' : 'Add Item'}
+                                {addToCartMutation.isPending ? t('cart.adding') : t('cart.add_item_title')}
                             </Button>
                         </Grid>
                     </Grid>
@@ -307,7 +309,7 @@ const CartPage: React.FC = () => {
             {selectedClient && (
                 <Paper elevation={1} sx={{ p: 2 }}>
                     <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
-                         <Typography variant="h6">Cart for: {selectedClient.first_name} {selectedClient.surname}</Typography>
+                         <Typography variant="h6">{t('cart.cart_for')}: {selectedClient.first_name} {selectedClient.surname}</Typography>
                          {cartData && cartData.items.length > 0 && (
                              <Button
                                  size="small"
@@ -318,7 +320,7 @@ const CartPage: React.FC = () => {
                                  onClick={handleClearCartClick}
                                  disabled={isCartMutating || isLoadingCart}
                              >
-                                 {isCartMutating ? 'Clearing...' : 'Clear Cart'}
+                                 {isCartMutating ? t('cart.clearing') : t('cart.clear_cart')}
                              </Button>
                          )}
                      </Box>
@@ -328,7 +330,7 @@ const CartPage: React.FC = () => {
                      {cartError && <Alert severity="error">Failed to load cart: {cartError?.message}</Alert>}
                      {!isLoadingCart && !cartError && (!cartData || cartData.items.length === 0) && (
                           <Typography sx={{ textAlign: 'center', color: 'text.secondary', my: 2 }}>
-                              Cart is empty.
+                              {t('cart.empty')}
                           </Typography>
                       )}
                      {!isLoadingCart && !cartError && cartData && cartData.items.length > 0 && (
@@ -354,7 +356,7 @@ const CartPage: React.FC = () => {
                                  </ListItem>
                              ))}
                              <ListItem sx={{ mt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-                                 <ListItemText primaryTypographyProps={{fontWeight: 'bold'}} primary="Total:" />
+                                 <ListItemText primaryTypographyProps={{fontWeight: 'bold'}} primary={`${t('common.total')}:`} />
                                  <Typography variant="body1" fontWeight="bold">{cartData.total}</Typography>
                              </ListItem>
                          </List>
@@ -371,4 +373,4 @@ const CartPage: React.FC = () => {
 export default CartPage;
 
 // Ensure it's treated as a module
-export {}; 
+export {};

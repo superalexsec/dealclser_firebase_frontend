@@ -13,12 +13,14 @@ import {
   Snackbar,
   Grid,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 const ContractTemplatePage: React.FC = () => {
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [templateContent, setTemplateContent] = useState('');
-  const [templateName, setTemplateName] = useState('Contract Template');
+  const [templateName, setTemplateName] = useState(t('templates.default_name'));
   const [isSnackbarOpen, setIsSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [templateId, setTemplateId] = useState<string | null>(null);
@@ -41,15 +43,15 @@ const ContractTemplatePage: React.FC = () => {
     if (templateData) {
       if (templateData.id) {
         setTemplateContent(templateData.content);
-        setTemplateName(templateData.name || 'Contract Template');
+        setTemplateName(templateData.name || t('templates.default_name'));
         setTemplateId(templateData.id);
       } else {
-        setTemplateContent('<p>Enter your contract HTML here.</p>');
-        setTemplateName('My Contract Template');
+        setTemplateContent(t('templates.default_content'));
+        setTemplateName(t('templates.default_name'));
         setTemplateId(null);
       }
     }
-  }, [templateData]);
+  }, [templateData, t]);
 
   // Mutation for creating or updating the contract template
   const mutation = useMutation({
@@ -66,12 +68,12 @@ const ContractTemplatePage: React.FC = () => {
       setTemplateContent(updatedOrCreatedTemplate.content);
       setTemplateName(updatedOrCreatedTemplate.name);
       setTemplateId(updatedOrCreatedTemplate.id);
-      setSnackbarMessage('Template saved successfully!');
+      setSnackbarMessage(t('templates.success_save'));
       setIsSnackbarOpen(true);
     },
     onError: (err: any) => {
       console.error('Error saving template:', err);
-      setSnackbarMessage(`Error saving template: ${err.message || 'Unknown error'}`);
+      setSnackbarMessage(`${t('templates.error_save')}: ${err.message || t('common.unknown_error')}`);
       setIsSnackbarOpen(true);
     },
   });
@@ -80,7 +82,7 @@ const ContractTemplatePage: React.FC = () => {
     if (templateContent) {
       mutation.mutate(templateContent);
     } else {
-      setSnackbarMessage('Cannot save empty template.');
+      setSnackbarMessage(t('templates.empty_save'));
       setIsSnackbarOpen(true);
     }
   };
@@ -93,23 +95,23 @@ const ContractTemplatePage: React.FC = () => {
   
   if (isError && templateData?.id === undefined) {
     if (!error?.message?.includes('No contract template found')) {
-       return <Alert severity="error">Error loading template: {error?.message || 'Unknown error'}</Alert>;
+       return <Alert severity="error">{t('templates.error_load')}: {error?.message || t('common.unknown_error')}</Alert>;
     }
   }
 
   return (
     <Paper sx={{ p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        Contract Template Editor
+        {t('templates.title')}
       </Typography>
       
       {!templateId && !isLoading && (
-          <Alert severity="info" sx={{mb:2}}>No template found. Saving will create a new one.</Alert>
+          <Alert severity="info" sx={{mb:2}}>{t('templates.no_template')}</Alert>
       )}
 
       <Box component="form" noValidate autoComplete="off" sx={{ mt: 2 }}>
         <TextField
-          label="Template Name"
+          label={t('templates.name_label')}
           value={templateName}
           onChange={(e) => setTemplateName(e.target.value)}
           fullWidth
@@ -117,7 +119,7 @@ const ContractTemplatePage: React.FC = () => {
           disabled={mutation.isPending}
         />
         <TextField
-          label="Template HTML Content"
+          label={t('templates.content_label')}
           multiline
           rows={20}
           value={templateContent}
@@ -125,7 +127,7 @@ const ContractTemplatePage: React.FC = () => {
           fullWidth
           variant="outlined"
           disabled={mutation.isPending}
-          helperText="Edit the HTML content for your contract template."
+          helperText={t('templates.content_helper')}
         />
         <Button
           variant="contained"
@@ -133,7 +135,7 @@ const ContractTemplatePage: React.FC = () => {
           disabled={mutation.isPending}
           sx={{ mt: 2 }}
         >
-          {mutation.isPending ? 'Saving...' : (templateId ? 'Update Template' : 'Create Template')}
+          {mutation.isPending ? t('common.saving') : (templateId ? t('templates.update_button') : t('templates.create_button'))}
         </Button>
       </Box>
 
@@ -141,7 +143,7 @@ const ContractTemplatePage: React.FC = () => {
       {templateContent && (
         <Grid item xs={12} sx={{ mt: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Live Preview
+            {t('templates.preview_title')}
           </Typography>
           <Paper elevation={2} sx={{ p: 2, border: '1px dashed #ccc', minHeight: '150px' }}>
             <div dangerouslySetInnerHTML={{ __html: templateContent }} />
@@ -160,4 +162,4 @@ const ContractTemplatePage: React.FC = () => {
   );
 };
 
-export default ContractTemplatePage; 
+export default ContractTemplatePage;

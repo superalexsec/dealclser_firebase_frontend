@@ -40,6 +40,7 @@ import AddCategoryDialog from '../components/AddCategoryDialog';
 import AddProductDialog from '../components/AddProductDialog';
 import ProductDetailModal from '../components/ProductDetailModal';
 import ManageCategoriesDialog from '../components/ManageCategoriesDialog';
+import { useTranslation } from 'react-i18next';
 
 // Interface combining product data and files for mutation
 interface ProductMutationPayload {
@@ -55,6 +56,7 @@ interface ProductSaveData extends ProductCreate {
 const ProductsCatalogPage: React.FC = () => {
     const { token } = useAuth();
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
     const [allProducts, setAllProducts] = useState<Product[]>([]);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
@@ -117,7 +119,7 @@ const ProductsCatalogPage: React.FC = () => {
         onSuccess: (newCategory) => {
             queryClient.invalidateQueries({ queryKey: ['categories', token] });
             setIsAddCategoryDialogOpen(false);
-            setSnackbarMessage(`Category "${newCategory.name}" created successfully!`);
+            setSnackbarMessage(t('products.success_category'));
             setShowSuccessSnackbar(true);
         },
         onError: (error) => {
@@ -140,12 +142,12 @@ const ProductsCatalogPage: React.FC = () => {
             // setAllProducts([]); // Let query invalidation handle refresh
             
             setIsAddProductDialogOpen(false);
-            setSnackbarMessage(`Product "${newProduct.name}" created successfully!`);
+            setSnackbarMessage(t('products.success_product'));
             setShowSuccessSnackbar(true);
         },
         onError: (error) => {
             console.error("Error creating product:", error);
-            setErrorSnackbarMessage(error.message || "Failed to create product. Please try again.");
+            setErrorSnackbarMessage(error.message || t('products.error_product'));
             setShowErrorSnackbar(true);
             // The error is also implicitly passed to the dialog via the `addProductError` variable below
         },
@@ -160,13 +162,13 @@ const ProductsCatalogPage: React.FC = () => {
         mutationFn: ({ productId, productData }) => updateProduct(productId, productData, token),
         onSuccess: (updatedProduct) => {
              queryClient.invalidateQueries({ queryKey: ['products', token] });
-             setSnackbarMessage(`Product "${updatedProduct.name}" updated successfully!`);
+             setSnackbarMessage(t('products.success_update'));
              setShowSuccessSnackbar(true);
              handleCloseDetailModal(); 
         },
         onError: (error: any) => { 
              console.error("Error updating product:", error);
-             let message = "Failed to update product. Please try again."; 
+             let message = t('products.error_update'); 
             if (error.response && error.response.data && error.response.data.detail) {
                 message = error.response.data.detail;
             } else if (error.message) {
@@ -186,13 +188,13 @@ const ProductsCatalogPage: React.FC = () => {
         onSuccess: () => {
             // Invalidate ALL product queries to be safe, or target specific pages
             queryClient.invalidateQueries({ queryKey: ['products', token] });
-            setSnackbarMessage('Product deleted successfully!');
+            setSnackbarMessage(t('products.success_delete'));
             setShowSuccessSnackbar(true);
             handleCloseDetailModal(); // Close the modal after successful deletion
         },
         onError: (error: any) => { // Change error type to any to inspect response
             console.error("Error deleting product:", error);
-            let message = "Failed to delete product. Please try again."; // Default message
+            let message = t('products.error_delete'); // Default message
             if (error.response && error.response.data && error.response.data.detail) {
                 // If backend sends a specific detail message (e.g., for 404)
                 message = error.response.data.detail;
@@ -213,7 +215,7 @@ const ProductsCatalogPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['categories', token] });
             // Also invalidate products as some might have become uncategorized or an orphaned category was used
             queryClient.invalidateQueries({ queryKey: ['products', token] });
-            setSnackbarMessage('Category deleted successfully!');
+            setSnackbarMessage(t('products.success_delete_cat'));
             setShowSuccessSnackbar(true);
             // No need to close ManageCategoriesDialog here, list will update. Or close if preferred.
         },
@@ -221,7 +223,7 @@ const ProductsCatalogPage: React.FC = () => {
             console.error("Error deleting category:", error);
             // Error message will be passed to ManageCategoriesDialog via deleteCategoryErrorHook.message
             // Or show a snackbar here too:
-            setErrorSnackbarMessage(error.response?.data?.detail || error.message || "Failed to delete category.");
+            setErrorSnackbarMessage(error.response?.data?.detail || error.message || t('products.error_delete_cat'));
             setShowErrorSnackbar(true);
         },
     });
@@ -348,21 +350,21 @@ const ProductsCatalogPage: React.FC = () => {
 
     return (
         <Box sx={{ p: 3 }}>
-            <Typography variant="h4" gutterBottom>Product Catalog</Typography>
+            <Typography variant="h4" gutterBottom>{t('products.title')}</Typography>
 
             {/* Controls: Category Filter & Add Buttons */}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} justifyContent="space-between" alignItems="center">
                 <FormControl sx={{ minWidth: 200, flexGrow: { xs: 1, sm: 0 } }} size="small">
-                    <InputLabel id="category-select-label">Category</InputLabel>
+                    <InputLabel id="category-select-label">{t('products.category')}</InputLabel>
                     <Select
                         labelId="category-select-label"
                         value={selectedCategory || 'all'}
-                        label="Category"
+                        label={t('products.category')}
                         onChange={handleCategoryChange}
                         disabled={isLoadingCategories || isInitialLoading} // Disable while loading
                     >
-                        <MenuItem value="all">All Categories</MenuItem>
-                        {isLoadingCategories && <MenuItem disabled>Loading...</MenuItem>}
+                        <MenuItem value="all">{t('products.all_categories')}</MenuItem>
+                        {isLoadingCategories && <MenuItem disabled>{t('common.loading')}</MenuItem>}
                         {categoriesError && <MenuItem disabled>Error loading</MenuItem>}
                         {categories.map((cat) => (
                             <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
@@ -376,7 +378,7 @@ const ProductsCatalogPage: React.FC = () => {
                         disabled={isAddingCategory} 
                         size="small"
                     >
-                        Add Category
+                        {t('products.add_category')}
                     </Button>
                     <Button 
                         variant="outlined" 
@@ -384,7 +386,7 @@ const ProductsCatalogPage: React.FC = () => {
                         size="small"
                         sx={{ ml: 1 }}
                     >
-                        Manage Categories
+                        {t('products.manage_categories')}
                     </Button>
                      <Button 
                         variant="contained" 
@@ -392,7 +394,7 @@ const ProductsCatalogPage: React.FC = () => {
                         disabled={isAddingProduct || categories.length === 0} 
                         size="small"
                     >
-                        Add Product
+                        {t('products.add_product')}
                     </Button>
                 </Stack>
             </Stack>
@@ -407,7 +409,7 @@ const ProductsCatalogPage: React.FC = () => {
             {/* Error State */}
             {productsError && !isInitialLoading && (
                 <Alert severity="error" sx={{ mb: 2 }}>
-                    Error fetching products: {productsError.message}
+                    {t('products.error_fetch')}: {productsError.message}
                 </Alert>
             )}
 
@@ -436,7 +438,7 @@ const ProductsCatalogPage: React.FC = () => {
                                         // Optional: Placeholder if no image
                                         <Box sx={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'grey.200' }}>
                                             <Typography variant="caption" color="text.secondary">
-                                                No Image
+                                                {t('products.no_image')}
                                             </Typography>
                                         </Box>
                                     )}
@@ -453,11 +455,11 @@ const ProductsCatalogPage: React.FC = () => {
                                         </Typography>
                                          {product.sku && (
                                             <Typography variant="caption" color="text.secondary" display="block"> 
-                                                SKU: {product.sku}
+                                                {t('products.sku')}: {product.sku}
                                             </Typography>
                                         )}
                                         <Typography variant="caption" color={product.is_active ? 'success.main' : 'error.main'}>
-                                            {product.is_active ? 'Active' : 'Inactive'}
+                                            {product.is_active ? t('common.active') : t('common.inactive')}
                                         </Typography>
                                     </CardContent>
                                     {/* CardActions were previously removed */}
@@ -466,7 +468,7 @@ const ProductsCatalogPage: React.FC = () => {
                         );
                     }) : (
                         <Grid item xs={12}>
-                             <Typography>No products found matching your criteria.</Typography>
+                             <Typography>{t('products.no_products')}</Typography>
                         </Grid>
                     )}
                 </Grid>
@@ -480,15 +482,15 @@ const ProductsCatalogPage: React.FC = () => {
                         onClick={handlePreviousPage} 
                         disabled={currentPage <= 1 || isPlaceholderData} // Use isPlaceholderData
                     >
-                        Previous
+                        {t('common.previous')}
                     </Button>
-                    <Typography sx={{ mx: 2, alignSelf: 'center' }}>Page {currentPage}</Typography>
+                    <Typography sx={{ mx: 2, alignSelf: 'center' }}>{t('common.page')} {currentPage}</Typography>
                      {/* Next Button */}
                     <Button 
                         onClick={handleNextPage} 
                         disabled={isPlaceholderData || !(currentProductPage?.has_more)} // Use isPlaceholderData
                     >
-                        {isPlaceholderData ? 'Loading...' : 'Next'} 
+                        {isPlaceholderData ? t('common.loading') : t('common.next')} 
                     </Button>
                 </Box>
             )}
@@ -557,4 +559,4 @@ const ProductsCatalogPage: React.FC = () => {
     );
 };
 
-export default ProductsCatalogPage; 
+export default ProductsCatalogPage;

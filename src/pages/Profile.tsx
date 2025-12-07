@@ -43,11 +43,13 @@ import apiClient, {
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const Profile = () => {
   const { token, logout } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -89,7 +91,7 @@ const Profile = () => {
       setTimeout(() => setUpdateSuccess(false), 3000);
     },
     onError: (error) => {
-      setUpdateError(error.message || 'Failed to update profile.');
+      setUpdateError(error.message || t('profile.error_update'));
       setUpdateSuccess(false);
     },
   });
@@ -134,7 +136,7 @@ const Profile = () => {
 
   const handleSave = () => {
     if (!formState.name || !formState.person_name || !formState.phone || !formState.address) {
-      setUpdateError('All fields are required.');
+      setUpdateError(t('profile.all_required'));
       return;
     }
     setUpdateError(null);
@@ -173,19 +175,19 @@ const Profile = () => {
   if (displayError && !isEditing) {
      return (
        <Alert severity="error" sx={{ mb: 2}}>
-         Error: {displayError instanceof Error ? displayError.message : displayError || 'An unknown error occurred.'}
+         {t('common.unknown_error')}: {displayError instanceof Error ? displayError.message : displayError || t('common.unknown_error')}
        </Alert>
      );
   }
 
   if (!profile) {
-    return <Alert severity="warning">Profile data not available.</Alert>;
+    return <Alert severity="warning">{t('common.unknown_error')}</Alert>; // Fallback
   }
 
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Profile
+        {t('profile.title')}
       </Typography>
 
       <Grid container spacing={3}>
@@ -199,7 +201,7 @@ const Profile = () => {
               </Avatar>
               {isEditing ? (
                  <TextField
-                   label="Person Name"
+                   label={t('profile.person_name')}
                    variant="outlined"
                    value={formState.person_name ?? ''}
                    onChange={handleInputChange('person_name')}
@@ -210,7 +212,7 @@ const Profile = () => {
                  <Typography variant="h5">{profile.person_name}</Typography>
               )}
               <Chip
-                label={profile.is_active ? 'Active' : 'Inactive'}
+                label={profile.is_active ? t('common.active') : t('common.inactive')}
                 color={profile.is_active ? 'success' : 'error'}
                 size="small"
                 sx={{ mt: 1 }}
@@ -218,7 +220,7 @@ const Profile = () => {
             </Box>
 
             {updateError && isEditing && <Alert severity="error" sx={{ mb: 2 }}>{updateError}</Alert>}
-            {updateSuccess && <Alert severity="success" sx={{ mb: 2 }}>Profile updated successfully!</Alert>}
+            {updateSuccess && <Alert severity="success" sx={{ mb: 2 }}>{t('profile.success_update')}</Alert>}
 
             <List>
               <ListItem>
@@ -226,9 +228,9 @@ const Profile = () => {
                   <BusinessIcon />
                 </ListItemIcon>
                 {isEditing ? (
-                  <TextField fullWidth label="Tenant / Company Name" variant="standard" value={formState.name ?? ''} onChange={handleInputChange('name')} required />
+                  <TextField fullWidth label={t('profile.tenant_name')} variant="standard" value={formState.name ?? ''} onChange={handleInputChange('name')} required />
                 ) : (
-                  <ListItemText primary="Tenant / Company Name" secondary={profile.name} />
+                  <ListItemText primary={t('profile.tenant_name')} secondary={profile.name} />
                 )}
               </ListItem>
               <ListItem>
@@ -236,7 +238,7 @@ const Profile = () => {
                   <EmailIcon />
                 </ListItemIcon>
                 <ListItemText
-                  primary="Login Email"
+                  primary={t('profile.login_email')}
                   secondary={profile.email}
                   secondaryTypographyProps={{ color: 'text.secondary' }}
                 />
@@ -246,9 +248,9 @@ const Profile = () => {
                   <PhoneIcon />
                 </ListItemIcon>
                 {isEditing ? (
-                  <TextField fullWidth label="Phone" variant="standard" value={formState.phone ?? ''} onChange={handleInputChange('phone')} required />
+                  <TextField fullWidth label={t('common.phone')} variant="standard" value={formState.phone ?? ''} onChange={handleInputChange('phone')} required />
                 ) : (
-                  <ListItemText primary="Phone" secondary={profile.phone} />
+                  <ListItemText primary={t('common.phone')} secondary={profile.phone} />
                 )}
               </ListItem>
               <ListItem>
@@ -256,9 +258,9 @@ const Profile = () => {
                   <LocationIcon />
                 </ListItemIcon>
                  {isEditing ? (
-                   <TextField fullWidth label="Address" variant="standard" value={formState.address ?? ''} onChange={handleInputChange('address')} required />
+                   <TextField fullWidth label={t('common.address')} variant="standard" value={formState.address ?? ''} onChange={handleInputChange('address')} required />
                  ) : (
-                   <ListItemText primary="Address" secondary={profile.address} />
+                   <ListItemText primary={t('common.address')} secondary={profile.address} />
                  )}
               </ListItem>
             </List>
@@ -272,7 +274,7 @@ const Profile = () => {
                              onClick={handleCancel}
                              disabled={updateMutation.isPending}
                          >
-                             Cancel
+                             {t('common.cancel')}
                          </Button>
                          <Button
                              variant="contained"
@@ -281,7 +283,7 @@ const Profile = () => {
                              onClick={handleSave}
                              disabled={updateMutation.isPending}
                          >
-                             {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                             {updateMutation.isPending ? t('common.saving') : t('common.save')}
                          </Button>
                      </Box>
                  ) : (
@@ -291,7 +293,7 @@ const Profile = () => {
                          onClick={handleEdit}
                          disabled={logoutMutation.isPending || deleteMutation.isPending}
                      >
-                         Edit Profile
+                         {t('profile.edit_profile')}
                      </Button>
                  )}
 
@@ -304,7 +306,7 @@ const Profile = () => {
                           onClick={() => logoutMutation.mutate()}
                           disabled={logoutMutation.isPending || deleteMutation.isPending}
                         >
-                          {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+                          {logoutMutation.isPending ? t('profile.logging_out') : t('layout.logout')}
                         </Button>
                     )}
 
@@ -315,7 +317,7 @@ const Profile = () => {
                       onClick={handleDeleteClick}
                       disabled={deleteMutation.isPending || isEditing || logoutMutation.isPending}
                     >
-                      {deleteMutation.isPending ? 'Deleting...' : 'Delete Account'}
+                      {deleteMutation.isPending ? t('profile.deleting') : t('profile.delete_account')}
                     </Button>
                  </Box>
             </Box>
@@ -330,21 +332,19 @@ const Profile = () => {
         aria-describedby="alert-dialog-description"
       >
         <DialogTitle id="alert-dialog-title">
-          {"Confirm Account Deletion"}
+          {t('profile.confirm_delete_title')}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
-            Are you absolutely sure you want to delete your account?
-            All associated data will be permanently lost.
-            This action cannot be undone.
+            {t('profile.confirm_delete_body')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDeleteDialog} color="primary" autoFocus>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleConfirmDelete} color="error">
-            Confirm Delete
+            {t('profile.confirm_delete')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -352,4 +352,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;
