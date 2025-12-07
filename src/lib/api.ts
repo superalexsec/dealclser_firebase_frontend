@@ -84,6 +84,7 @@ export interface TenantUpdate {
   phone?: string;
   person_name?: string;
   address?: string;
+  client_register_custom_question?: string;
 }
 
 // --- Settings Types (WhatsApp Config) ---

@@ -62,6 +62,7 @@ i18n
             message_flow: 'Message Flow',
             clients: 'Clients',
             products: 'Products',
+            catalog: 'Catalog',
             cart: 'Cart',
             calendar: 'Calendar',
             settings: 'Settings',
@@ -327,6 +328,8 @@ i18n
             success_update: 'Profile updated successfully!',
             error_update: 'Failed to update profile.',
             all_required: 'All fields are required.',
+            custom_question: 'Custom Client Question',
+            custom_question_helper: 'Question asked to clients during registration (e.g. "Favorite Color"). Leave empty to disable.',
           },
           purchases: {
             title: 'Purchases (Payment Sessions)',
@@ -387,6 +390,7 @@ i18n
             message_flow: 'Fluxo de Mensagens',
             clients: 'Clientes',
             products: 'Produtos',
+            catalog: 'Catálogo',
             cart: 'Carrinho',
             calendar: 'Agenda',
             settings: 'Configurações',
@@ -652,6 +656,8 @@ i18n
             success_update: 'Perfil atualizado com sucesso!',
             error_update: 'Falha ao atualizar perfil.',
             all_required: 'Todos os campos são obrigatórios.',
+            custom_question: 'Pergunta Personalizada ao Cliente',
+            custom_question_helper: 'Pergunta feita aos clientes durante o cadastro (ex: "Cor Favorita"). Deixe em branco para desativar.',
           },
           purchases: {
             title: 'Compras (Sessões de Pagamento)',

@@ -222,7 +222,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       key: 'Products',
       icon: <StorefrontIcon />,
       subItems: [
-        { text: 'Catalog', icon: <CategoryIcon />, path: '/products' }, // Translate Catalog if needed
+        { text: t('layout.catalog'), icon: <CategoryIcon />, path: '/products' },
         { text: t('layout.cart'), icon: <ShoppingCartIcon />, path: '/cart' },
       ]
     },

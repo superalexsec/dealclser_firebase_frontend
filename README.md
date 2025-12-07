@@ -18,8 +18,8 @@ This application provides the user interface for tenants to manage their WhatsAp
     *   Add new appointments for clients, including client search and slot availability checks.
     *   View details of existing appointments.
     *   Configure calendar settings (name, working hours, default appointment duration) via the Settings page.
-*   **Settings & Profile:** Manage tenant account details, API configurations (WhatsApp Business, Mercado Pago, Calendar), and user profile information.
-*   **(Placeholders):** PDF Generation/Signing.
+    *   **Settings & Profile:** Manage tenant account details, API configurations (WhatsApp Business, Mercado Pago, Calendar), user profile information, and configure a custom registration question for clients.
+    *   **(Placeholders):** PDF Generation/Signing.
 
 ## Tech Stack
 

@@ -30,6 +30,7 @@ import { parse } from 'date-fns/parse';
 import { startOfWeek } from 'date-fns/startOfWeek';
 import { getDay } from 'date-fns/getDay';
 import { enUS } from 'date-fns/locale/en-US';
+import { ptBR } from 'date-fns/locale/pt-BR';
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useAuth } from '../contexts/AuthContext';
 import apiClient, {
@@ -48,9 +49,11 @@ import apiClient, {
   fetchClients,
 } from '../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 const locales = {
   'en-US': enUS,
+  'pt-BR': ptBR,
 };
 
 const localizer = dateFnsLocalizer({
@@ -89,6 +92,7 @@ const filterOptions = createFilterOptions<Client>({
 const CalendarPage: React.FC = () => {
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const { t, i18n } = useTranslation();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
@@ -106,11 +110,11 @@ const CalendarPage: React.FC = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
   const [selectedTimezone, setSelectedTimezone] = useState(brazilianTimezones[0]); // Default to Brasília
 
-  const showSnackbar = (message: string, severity: 'success' | 'error') => {
+  const showSnackbar = useCallback((message: string, severity: 'success' | 'error') => {
     setSnackbarMessage(message);
     setSnackbarSeverity(severity);
     setSnackbarOpen(true);
-  };
+  }, []);
 
   const { data: calendarSettings, isLoading: isLoadingCalendarSettings } = useQuery<TenantCalendarInfo, Error>({
     queryKey: ['tenantCalendarSettings', token],
@@ -159,11 +163,11 @@ const CalendarPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenantAppointments'] });
       handleAddDialogClose();
-      showSnackbar('Appointment created successfully!', 'success');
+      showSnackbar(t('calendar.success_create'), 'success');
     },
     onError: (error) => {
-      setAvailabilityMessage(`Failed to create appointment: ${error.message}`);
-      showSnackbar(`Failed to create appointment: ${error.message}`, 'error');
+      setAvailabilityMessage(`${t('calendar.error_create')}: ${error.message}`);
+      showSnackbar(`${t('calendar.error_create')}: ${error.message}`, 'error');
     }
   });
 
@@ -175,7 +179,7 @@ const CalendarPage: React.FC = () => {
     },
     onError: (error) => {
       setIsSlotAvailable(false);
-      setAvailabilityMessage(`Availability check failed: ${error.message}`);
+      setAvailabilityMessage(`${t('calendar.error_check')}: ${error.message}`);
     }
   });
 
@@ -185,10 +189,10 @@ const CalendarPage: React.FC = () => {
       queryClient.invalidateQueries({queryKey: ['tenantAppointments']});
       setOpenDetailDialog(false);
       setSelectedAppointment(null);
-      showSnackbar('Appointment deleted successfully!', 'success');
+      showSnackbar(t('calendar.success_delete'), 'success');
     },
     onError: (error) => {
-        showSnackbar(`Failed to delete appointment: ${error.message}`, 'error');
+        showSnackbar(`${t('calendar.error_delete')}: ${error.message}`, 'error');
     }
   });
 
@@ -233,7 +237,7 @@ const CalendarPage: React.FC = () => {
   
   const handleCheckAvailability = () => {
     if (!newAppointmentData.start_time || !calendarSettings?.appointment_duration_minutes) {
-      setAvailabilityMessage('Please select a start time and ensure calendar settings are loaded.');
+      setAvailabilityMessage(t('calendar.msg_check_required'));
       return;
     }
     checkAvailabilityMutation.mutate({
@@ -244,11 +248,11 @@ const CalendarPage: React.FC = () => {
   
   const handleSaveAppointment = () => {
     if (!selectedClient || !newAppointmentData.start_time || !calendarSettings) {
-      setAvailabilityMessage('Client, start time, and calendar settings are required.');
+      setAvailabilityMessage(t('calendar.msg_save_required'));
       return;
     }
     if (isSlotAvailable !== true) {
-        setAvailabilityMessage('Selected slot is not available or availability not checked.');
+        setAvailabilityMessage(t('calendar.msg_slot_unavailable'));
         return;
     }
     // The start_time is a naive "yyyy-MM-dd'T'HH:mm:ss" string from the input.
@@ -289,13 +293,13 @@ const CalendarPage: React.FC = () => {
   return (
     <Box sx={{ p: 3, height: 'calc(100vh - 120px)' }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4">Calendar</Typography>
+        <Typography variant="h4">{t('calendar.title')}</Typography>
         <Box display="flex" alignItems="center" gap={2}>
             <FormControl sx={{ minWidth: 220 }} size="small">
-                <InputLabel>Timezone</InputLabel>
+                <InputLabel>{t('calendar.timezone')}</InputLabel>
                 <Select
                     value={selectedTimezone.id}
-                    label="Timezone"
+                    label={t('calendar.timezone')}
                     onChange={(e) => {
                         const newTz = brazilianTimezones.find(tz => tz.id === e.target.value);
                         if (newTz) setSelectedTimezone(newTz);
@@ -307,12 +311,12 @@ const CalendarPage: React.FC = () => {
                 </Select>
             </FormControl>
             <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleSelectSlot({start: new Date()})}>
-              New Appointment
+              {t('calendar.new_appointment')}
             </Button>
         </Box>
       </Box>
 
-      {fetchAppointmentsError && <Alert severity="error">Failed to load appointments: {fetchAppointmentsError.message}</Alert>}
+      {fetchAppointmentsError && <Alert severity="error">{t('calendar.error_check')}: {fetchAppointmentsError.message}</Alert>}
       
       <Paper sx={{height: '100%', p: 1}}>
         <BigCalendar
@@ -329,6 +333,7 @@ const CalendarPage: React.FC = () => {
             onView={(v) => setView(v as 'month' | 'week' | 'day')}
             date={currentDate}
             onNavigate={(newDate) => setCurrentDate(newDate)}
+            culture={i18n.language}
             components={{ event: EventComponent }}
             formats={{ timeGutterFormat: (date, culture, l) => l!.format(date, 'p', culture!), eventTimeRangeFormat: ({ start, end }, culture, l) => `${l!.format(start, 'p', culture!)} — ${l!.format(end, 'p', culture!)}`}}
         />
@@ -336,7 +341,7 @@ const CalendarPage: React.FC = () => {
 
       <Dialog open={openAddDialog} onClose={handleAddDialogClose} fullWidth maxWidth="sm">
         <DialogTitle>
-            New Appointment
+            {t('calendar.new_appointment')}
             <IconButton aria-label="close" onClick={handleAddDialogClose} sx={{ position: 'absolute', right: 8, top: 8 }}><CloseIcon /></IconButton>
         </DialogTitle>
         <DialogContent dividers>
@@ -350,62 +355,62 @@ const CalendarPage: React.FC = () => {
                         loading={isLoadingClients}
                         filterOptions={filterOptions}
                         renderInput={(params) => (
-                            <TextField {...params} label="Search Client (Name, Phone, CPF/CNPJ)" variant="outlined" />
+                            <TextField {...params} label={t('calendar.search_client')} variant="outlined" />
                         )}
                         renderOption={(props, option) => <li {...props} key={option.id}>{`${option.first_name} ${option.surname} (${option.client_identification}) - ${option.client_phone_number}`}</li>}
                         isOptionEqualToValue={(option, value) => option.id === value.id}
-                        noOptionsText={isLoadingClients ? "Loading clients..." : "No clients found or type to search"}
+                        noOptionsText={isLoadingClients ? t('calendar.loading_clients') : t('calendar.no_clients')}
                     />
                 </Grid>
-                {selectedClient && <Grid item xs={12}><Chip label={`Selected: ${selectedClient.first_name} ${selectedClient.surname}`} onDelete={() => setSelectedClient(null)} /></Grid>}
+                {selectedClient && <Grid item xs={12}><Chip label={`${t('calendar.selected')}: ${selectedClient.first_name} ${selectedClient.surname}`} onDelete={() => setSelectedClient(null)} /></Grid>}
                 <Grid item xs={12} sm={6}>
-                    <TextField label="Date" type="date" value={newAppointmentData.start_time?.substring(0, 10) || ''} onChange={(e) => handleDateTimeChange('date', e.target.value)} fullWidth InputLabelProps={{ shrink: true }}/>
+                    <TextField label={t('calendar.date')} type="date" value={newAppointmentData.start_time?.substring(0, 10) || ''} onChange={(e) => handleDateTimeChange('date', e.target.value)} fullWidth InputLabelProps={{ shrink: true }}/>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                    <TextField label="Time" type="time" value={newAppointmentData.start_time?.substring(11, 16) || ''} onChange={(e) => handleDateTimeChange('time', e.target.value)} fullWidth InputLabelProps={{ shrink: true }} inputProps={{ step: (calendarSettings?.appointment_duration_minutes || 30) * 60 }}/>
+                    <TextField label={t('calendar.time')} type="time" value={newAppointmentData.start_time?.substring(11, 16) || ''} onChange={(e) => handleDateTimeChange('time', e.target.value)} fullWidth InputLabelProps={{ shrink: true }} inputProps={{ step: (calendarSettings?.appointment_duration_minutes || 30) * 60 }}/>
                 </Grid>
                  <Grid item xs={12}>
-                    <TextField label="Description (Optional)" multiline rows={2} fullWidth value={newAppointmentData.description || ''} onChange={(e) => setNewAppointmentData(prev => ({ ...prev, description: e.target.value }))}/>
+                    <TextField label={t('calendar.description')} multiline rows={2} fullWidth value={newAppointmentData.description || ''} onChange={(e) => setNewAppointmentData(prev => ({ ...prev, description: e.target.value }))}/>
                 </Grid>
                 <Grid item xs={12}>
                     <Button onClick={handleCheckAvailability} disabled={!newAppointmentData.start_time || !calendarSettings || checkAvailabilityMutation.isPending} variant="outlined" fullWidth>
-                        {checkAvailabilityMutation.isPending ? <CircularProgress size={24}/> : "Check Availability"}
+                        {checkAvailabilityMutation.isPending ? <CircularProgress size={24}/> : t('calendar.check_availability')}
                     </Button>
                 </Grid>
                 {availabilityMessage && <Grid item xs={12}><Alert severity={isSlotAvailable === true ? "success" : isSlotAvailable === false ? "error" : "info"}>{availabilityMessage}</Alert></Grid>}
             </Grid>
         </DialogContent>
         <DialogActions sx={{p: 2}}>
-          <Button onClick={handleAddDialogClose}>Cancel</Button>
+          <Button onClick={handleAddDialogClose}>{t('common.cancel')}</Button>
           <Button onClick={handleSaveAppointment} variant="contained" disabled={isSlotAvailable !== true || createAppointmentMutation.isPending || !selectedClient}>
-            {createAppointmentMutation.isPending ? <CircularProgress size={24}/> : "Save Appointment"}
+            {createAppointmentMutation.isPending ? <CircularProgress size={24}/> : t('calendar.save_appointment')}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} fullWidth maxWidth="xs">
         <DialogTitle>
-            Appointment Details
+            {t('calendar.details')}
             <IconButton aria-label="close" onClick={() => setOpenDetailDialog(false)} sx={{ position: 'absolute', right: 8, top: 8 }}><CloseIcon /></IconButton>
         </DialogTitle>
         {selectedAppointment && (
           <DialogContent dividers>
             <Typography variant="h6">{selectedAppointment.client_name}</Typography>
-            <Typography variant="body1">Phone: {selectedAppointment.client_phone_number}</Typography>
+            <Typography variant="body1">{t('common.phone')}: {selectedAppointment.client_phone_number}</Typography>
             <Typography variant="body1">From: {format(selectedAppointment.start, 'Pp')}</Typography>
             <Typography variant="body1">To: {format(selectedAppointment.end, 'Pp')}</Typography>
-            <Typography variant="body1">Status: <Chip label={selectedAppointment.status} size="small" /></Typography>
-            {selectedAppointment.description && <Typography variant="body1">Description: {selectedAppointment.description}</Typography>}
-            {selectedAppointment.client_address && <Typography variant="body1">Address: {selectedAppointment.client_address}</Typography>}
+            <Typography variant="body1">{t('common.status')}: <Chip label={selectedAppointment.status} size="small" /></Typography>
+            {selectedAppointment.description && <Typography variant="body1">{t('common.description')}: {selectedAppointment.description}</Typography>}
+            {selectedAppointment.client_address && <Typography variant="body1">{t('common.address')}: {selectedAppointment.client_address}</Typography>}
             <Typography variant="caption" display="block" sx={{mt:1}}>Appt ID: {selectedAppointment.appointment_id}</Typography>
             <Typography variant="caption" display="block">Calendar Event ID: {selectedAppointment.calendar_event_id}</Typography>
           </DialogContent>
         )}
         <DialogActions sx={{p: 2, justifyContent: 'space-between'}}>
           <Button onClick={handleDeleteAppointment} color="error" startIcon={<DeleteIcon />} disabled={deleteAppointmentMutation.isPending || !selectedAppointment}>
-            {deleteAppointmentMutation.isPending ? <CircularProgress size={20}/> : "Delete"}
+            {deleteAppointmentMutation.isPending ? <CircularProgress size={20}/> : t('common.delete')}
           </Button>
-          <Button onClick={() => setOpenDetailDialog(false)}>Close</Button>
+          <Button onClick={() => setOpenDetailDialog(false)}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
 
@@ -418,4 +423,4 @@ const CalendarPage: React.FC = () => {
   );
 };
 
-export default CalendarPage; 
+export default CalendarPage;

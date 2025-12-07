@@ -31,6 +31,7 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
   Logout as LogoutIcon,
+  QuestionAnswer as QuestionIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient, { 
@@ -70,6 +71,7 @@ const Profile = () => {
         phone: profile.phone,
         person_name: profile.person_name,
         address: profile.address,
+        client_register_custom_question: profile.client_register_custom_question || '',
       });
     } else if (profile) {
       setFormState((prev) => ({
@@ -77,6 +79,7 @@ const Profile = () => {
         phone: prev.phone ?? profile.phone,
         person_name: prev.person_name ?? profile.person_name,
         address: prev.address ?? profile.address,
+        client_register_custom_question: prev.client_register_custom_question ?? profile.client_register_custom_question ?? '',
       }));
     }
   }, [profile, isEditing]);
@@ -261,6 +264,27 @@ const Profile = () => {
                    <TextField fullWidth label={t('common.address')} variant="standard" value={formState.address ?? ''} onChange={handleInputChange('address')} required />
                  ) : (
                    <ListItemText primary={t('common.address')} secondary={profile.address} />
+                 )}
+              </ListItem>
+              <ListItem>
+                <ListItemIcon>
+                  <QuestionIcon />
+                </ListItemIcon>
+                 {isEditing ? (
+                   <TextField 
+                     fullWidth 
+                     label={t('profile.custom_question')} 
+                     variant="standard" 
+                     value={formState.client_register_custom_question ?? ''} 
+                     onChange={handleInputChange('client_register_custom_question')} 
+                     helperText={t('profile.custom_question_helper')}
+                   />
+                 ) : (
+                   <ListItemText 
+                     primary={t('profile.custom_question')} 
+                     secondary={profile.client_register_custom_question || t('common.inactive')} 
+                     secondaryTypographyProps={{ color: profile.client_register_custom_question ? 'textPrimary' : 'textSecondary' }}
+                   />
                  )}
               </ListItem>
             </List>
