@@ -1,24 +1,42 @@
-# Checklist: Restrict Message Flow Editing
+# Checklist for Adding PT-BR Translation
 
-- [x] 1. **Understand the Goal:** The main objective is to prevent users from editing message flows for any modules except "welcome" and "goodbye" on the "Message Flow" page.
+The goal is to implement Brazilian Portuguese (PT-BR) translation with minimum code changes, focusing on fixing any failed attempts and leveraging existing libraries.
 
-- [x] 2. **Explore the Codebase:**
-    - [x] Locate the `MessageFlow.tsx` page component.
-    - [x] Analyze how it fetches and displays the list of modules (e.g., in a dropdown).
-    - [x] Identify how the module data is structured. Specifically, find the property that holds the module name (e.g., `module.name`).
-    - [x] Examine the existing UI components for adding, editing, and deleting messages to understand how to disable them.
+## 1. Analysis
+- [x] **Current State:** No i18n library installed. `date-fns` and `@mui/material` are present.
+- [x] **Findings:**
+    - `src/pages/Calendar.tsx` hardcodes `en-US` locale.
+    - `src/pages/PaymentPage.tsx` has a commented out reference to `pt-BR`.
+    - `date-fns` is the primary date library.
 
-- [x] 3. **Implement the Restriction Logic:**
-    - [x] In `MessageFlow.tsx`, after fetching the list of modules, identify the currently selected module.
-    - [x] Create a condition to check if the selected module's name is either "welcome" or "goodbye".
-    - [x] Use this condition to conditionally render or disable the UI controls for editing the message flow (e.g., "Add Message," "Edit," "Delete," and drag-and-drop functionality).
-    - [x] Display a message to the user explaining why editing is disabled for the selected module (e.g., "Editing is only allowed for 'welcome' and 'goodbye' modules.").
+## 2. Implementation Steps
 
-- [x] 4. **Testing (Mental Walkthrough):**
-    - [x] Imagine selecting the "welcome" module. The editing controls should be visible and active.
-    - [x] Imagine selecting the "goodbye" module. The editing controls should be visible and active.
-    - [x] Imagine selecting any other module (e.g., "client_check"). The editing controls should be disabled or hidden, and the informational message should be displayed.
+### Phase 1: Date & Calendar Localization (High Priority)
+- [x] **Import Locale:** Import `ptBR` from `date-fns/locale/pt-BR` in `src/pages/Calendar.tsx`.
+- [x] **Update Localizer:** Add `pt-BR` to the `locales` object in `src/pages/Calendar.tsx`.
+- [x] **Set Default:** Set the default locale for `BigCalendar` to `pt-BR`.
+- [x] **Verify Formats:** Ensure date formats (e.g., `dd/MM/yyyy`) are culturally appropriate.
 
-- [x] 5. **Final Review:**
-    - [x] Ensure no existing functionality for the "welcome" and "goodbye" modules is broken.
-    - [x] Confirm that the code changes are isolated to the `MessageFlow.tsx` component as much as possible to avoid unintended side effects.
+### Phase 2: UI Component Localization (MUI)
+- [x] **Import MUI Locale:** Import `ptBR` from `@mui/material/locale`.
+- [x] **Update Theme:** Inject the `ptBR` locale into the `createTheme` call in `src/theme.ts` or `src/App.tsx`.
+
+### Phase 3: Text Content Translation (MVP)
+- [x] **Strategy:** Installed `i18next` and `react-i18next`.
+- [x] **Action:** Created `src/i18n.ts`.
+- [x] **Language Switcher:** Added a language switcher (EN/PT) to `src/components/Layout.tsx`.
+- [x] **Calendar Translation:** Implemented `useTranslation` in `src/pages/Calendar.tsx`.
+
+### Phase 4: Full App Translation (Current Focus)
+- [ ] **Fix Default Language:** Force PT-BR as the initial default language in `src/i18n.ts` (currently defaulting to browser language/EN).
+- [ ] **Landing Page:** Translate `src/pages/Landing.tsx`.
+- [ ] **Settings Page:** Translate `src/pages/Settings.tsx`.
+- [ ] **Client Service:** Translate `src/pages/ClientService.tsx` (Table headers, buttons).
+- [ ] **Module/Message Flow:** Translate main headers and buttons in `src/pages/ModuleFlow.tsx` and `src/pages/MessageFlow.tsx`.
+- [ ] **Other Pages:** Add translations for `Profile`, `Products`, `Purchases`, `Contracts` as needed for MVP coverage.
+
+## 3. Verification
+- [ ] **Build:** Run `npm run build` to ensure no errors.
+- [ ] **Visual Check:** Verify app opens in Portuguese by default.
+- [ ] **Visual Check:** Verify navigation to other pages shows translated content.
+

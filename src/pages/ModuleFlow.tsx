@@ -33,10 +33,12 @@ import {
   fetchModuleOrder,
   updateModuleOrder,
 } from '../lib/api';
+import { useTranslation } from 'react-i18next';
 
 const ModuleFlow = () => {
   const queryClient = useQueryClient();
   const { token } = useAuth(); // Get token from context
+  const { t } = useTranslation();
   const backendUrl = window.runtimeConfig?.backendUrl;
 
   // Local state for the modules being ordered/toggled by the user
@@ -167,7 +169,7 @@ const ModuleFlow = () => {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
         <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Loading Module Flow...</Typography>
+        <Typography sx={{ ml: 2 }}>{t('common.loading')}</Typography>
       </Box>
     );
   }
@@ -179,14 +181,14 @@ const ModuleFlow = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Module Flow Order</Typography>
+        <Typography variant="h4">{t('module_flow.title')}</Typography>
         <Stack direction="row" spacing={2}>
           <Button
             variant="outlined"
             onClick={handleResetChanges}
             disabled={!hasChanges || isUpdatingOrder}
           >
-            Reset Order
+            {t('common.reset_order')}
           </Button>
           <Button
             variant="contained"
@@ -194,23 +196,23 @@ const ModuleFlow = () => {
             onClick={handleSaveChanges}
             disabled={!hasChanges || isUpdatingOrder}
           >
-            {isUpdatingOrder ? 'Saving...' : 'Save Changes'}
+            {isUpdatingOrder ? t('common.saving') : t('module_flow.save_changes')}
           </Button>
         </Stack>
       </Box>
 
       {hasApiError && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {`API Error: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`}
+          {`${t('common.api_error')}: ${apiError instanceof Error ? apiError.message : t('common.unknown_error')}`}
         </Alert>
       )}
 
       {!hasApiError && isUpdatingOrder && (
-         <Alert severity="info" sx={{ mb: 3 }}>Updating module order...</Alert>
+         <Alert severity="info" sx={{ mb: 3 }}>{t('module_flow.updating')}</Alert>
       )}
 
       <Alert severity="info" sx={{ mb: 3 }}>
-        Reorder modules or toggle their inclusion using the eye icon. Click 'Save Changes' to update the flow.
+        {t('module_flow.instructions')}
       </Alert>
 
       <Paper sx={{ opacity: isUpdatingOrder ? 0.7 : 1 }}>
@@ -220,7 +222,7 @@ const ModuleFlow = () => {
               <List {...provided.droppableProps} ref={provided.innerRef} sx={{ p: 2 }}>
                 {displayModules.length === 0 && !isLoadingModules && !hasApiError && (
                   <ListItem>
-                    <ListItemText primary="No modules found or configured for this tenant." />
+                    <ListItemText primary={t('module_flow.no_modules')} />
                   </ListItem>
                 )}
                 {displayModules.map((moduleEntry, index) => {
@@ -256,7 +258,7 @@ const ModuleFlow = () => {
                             }}
                           />
                           <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Tooltip title={moduleEntry.ui_is_active ? "Mark as Inactive (will be excluded on save)" : "Mark as Active (will be included on save)"}>
+                            <Tooltip title={moduleEntry.ui_is_active ? t('module_flow.mark_inactive') : t('module_flow.mark_active')}>
                               <IconButton
                                 onClick={() => handleToggleActive(moduleEntry.id)}
                                 disabled={isUpdatingOrder}
@@ -268,14 +270,14 @@ const ModuleFlow = () => {
                             <IconButton
                               onClick={() => handleMoveModule(moduleEntry.id, 'up')}
                               disabled={index === 0 || isUpdatingOrder}
-                              aria-label="Move Up"
+                              aria-label={t('module_flow.move_up')}
                             >
                               <ArrowUpIcon />
                             </IconButton>
                             <IconButton
                               onClick={() => handleMoveModule(moduleEntry.id, 'down')}
                               disabled={index === displayModules.length - 1 || isUpdatingOrder}
-                              aria-label="Move Down"
+                              aria-label={t('module_flow.move_down')}
                             >
                               <ArrowDownIcon />
                             </IconButton>
@@ -295,4 +297,4 @@ const ModuleFlow = () => {
   );
 };
 
-export default ModuleFlow; 
+export default ModuleFlow;

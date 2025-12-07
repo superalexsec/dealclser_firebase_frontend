@@ -42,6 +42,7 @@ import apiClient, {
     uploadTenantLogo,
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -72,6 +73,7 @@ function TabPanel(props: TabPanelProps) {
 const BrandingTab: React.FC = () => {
     const { token } = useAuth();
     const queryClient = useQueryClient();
+    const { t } = useTranslation();
 
     const { data: tenantData, isLoading: isLoadingTenant } = useQuery<TenantData, Error>({
         queryKey: ['tenantData', token],
@@ -125,11 +127,11 @@ const BrandingTab: React.FC = () => {
     return (
         <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-                Company Logo
+                {t('settings.branding.title')}
             </Typography>
             <Grid container spacing={3} alignItems="center">
                 <Grid item xs={12} sm={4}>
-                    <Typography variant="subtitle1" gutterBottom>Current Logo</Typography>
+                    <Typography variant="subtitle1" gutterBottom>{t('settings.branding.current')}</Typography>
                     <Box
                         sx={{
                             width: 150,
@@ -145,12 +147,12 @@ const BrandingTab: React.FC = () => {
                         {currentLogoUrl ? (
                             <img src={currentLogoUrl} alt="Current Logo" style={{ maxWidth: '100%', maxHeight: '100%' }} />
                         ) : (
-                            <Typography variant="caption" color="textSecondary">No Logo</Typography>
+                            <Typography variant="caption" color="textSecondary">{t('settings.branding.no_logo')}</Typography>
                         )}
                     </Box>
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                    <Typography variant="subtitle1" gutterBottom>New Logo Preview</Typography>
+                    <Typography variant="subtitle1" gutterBottom>{t('settings.branding.preview')}</Typography>
                      <Box
                         sx={{
                             width: 150,
@@ -166,7 +168,7 @@ const BrandingTab: React.FC = () => {
                         {previewUrl ? (
                             <img src={previewUrl} alt="New Logo Preview" style={{ maxWidth: '100%', maxHeight: '100%' }} />
                         ) : (
-                            <Typography variant="caption" color="textSecondary">Select a file</Typography>
+                            <Typography variant="caption" color="textSecondary">{t('settings.branding.select_file')}</Typography>
                         )}
                     </Box>
                 </Grid>
@@ -176,7 +178,7 @@ const BrandingTab: React.FC = () => {
                             variant="contained"
                             component="label"
                         >
-                            Select Logo
+                            {t('settings.branding.select')}
                             <input
                                 type="file"
                                 hidden
@@ -190,7 +192,7 @@ const BrandingTab: React.FC = () => {
                             onClick={handleUpload}
                             disabled={!selectedFile || mutation.isPending}
                         >
-                            {mutation.isPending ? <CircularProgress size={24} /> : 'Upload'}
+                            {mutation.isPending ? <CircularProgress size={24} /> : t('settings.branding.upload')}
                         </Button>
                     </Box>
                 </Grid>
@@ -208,6 +210,7 @@ function a11yProps(index: number) {
 
 const PixInstallmentsConfig: React.FC = () => {
   const { token } = useAuth();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -256,7 +259,7 @@ const PixInstallmentsConfig: React.FC = () => {
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
       <TextField
-        label="Pix Discount (%)"
+        label={t('settings.mercadopago.pix_discount')}
         type="number"
         value={pixDiscount}
         onChange={e => setPixDiscount(e.target.value === '' ? '' : Number(e.target.value))}
@@ -265,7 +268,7 @@ const PixInstallmentsConfig: React.FC = () => {
         sx={{ minWidth: 200 }}
       />
       <TextField
-        label="Max Installments"
+        label={t('settings.mercadopago.max_installments')}
         type="number"
         value={maxInstallments}
         onChange={e => setMaxInstallments(e.target.value === '' ? '' : Number(e.target.value))}
@@ -278,7 +281,7 @@ const PixInstallmentsConfig: React.FC = () => {
         onClick={handleSave}
         disabled={loading || (pixDiscount === initial?.pix_discount && maxInstallments === initial?.max_installments)}
       >
-        {loading ? 'Saving...' : 'Save'}
+        {loading ? t('settings.mercadopago.saving') : t('settings.mercadopago.save')}
       </Button>
       {success && <Alert severity="success">Pix Discount / Max Installments updated!</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
@@ -299,6 +302,7 @@ const DayAbbreviations: { [key: number]: string } = {
 const CalendarSettingsTab: React.FC = () => {
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const [formState, setFormState] = useState<Partial<FrontendTenantCalendarSettingsCreate>>({});
   const [workingPeriods, setWorkingPeriods] = useState<Partial<WorkingPeriod>[]>([]);
@@ -399,12 +403,12 @@ const CalendarSettingsTab: React.FC = () => {
 
   return (
     <Paper elevation={3} sx={{ p: 3 }}>
-      <Typography variant="h6" gutterBottom>Calendar Configuration</Typography>
+      <Typography variant="h6" gutterBottom>{t('settings.calendar_config.title')}</Typography>
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
-            label="Calendar Name"
+            label={t('settings.calendar_config.name')}
             name="calendar_name"
             value={formState.calendar_name || ''}
             onChange={handleInputChange}
@@ -414,7 +418,7 @@ const CalendarSettingsTab: React.FC = () => {
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
-            label="Timezone"
+            label={t('settings.calendar_config.timezone')}
             name="timezone"
             value={formState.timezone || ''}
             onChange={handleInputChange} // Allow edit as per POST schema
@@ -427,7 +431,7 @@ const CalendarSettingsTab: React.FC = () => {
           <TextField
             fullWidth
             type="number"
-            label="Max Concurrent Events"
+            label={t('settings.calendar_config.max_concurrent')}
             name="max_concurrent_events"
             value={formState.max_concurrent_events || ''}
             onChange={e => setFormState(prev => ({ ...prev, max_concurrent_events: parseInt(e.target.value, 10) || undefined }))} // Allow edit
@@ -440,7 +444,7 @@ const CalendarSettingsTab: React.FC = () => {
           <TextField
             fullWidth
             type="number"
-            label="Appointment Duration (minutes)"
+            label={t('settings.calendar_config.duration')}
             name="appointment_duration_minutes"
             value={formState.appointment_duration_minutes || ''}
             onChange={e => setFormState(prev => ({ ...prev, appointment_duration_minutes: parseInt(e.target.value, 10) || undefined }))} // Allow edit
@@ -451,12 +455,12 @@ const CalendarSettingsTab: React.FC = () => {
         </Grid>
 
         <Grid item xs={12}>
-          <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>Working Periods</Typography>
+          <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>{t('settings.calendar_config.working_periods')}</Typography>
           {workingPeriods.map((period, index) => (
             <Paper key={period.id || index} elevation={1} sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
               <TextField
                 select
-                label="Day"
+                label={t('settings.calendar_config.day')}
                 value={period.day_of_week || 0}
                 onChange={(e) => handleWorkingPeriodChange(index, 'day_of_week', parseInt(e.target.value,10))}
                 SelectProps={{ native: true }}
@@ -467,7 +471,7 @@ const CalendarSettingsTab: React.FC = () => {
                 ))}
               </TextField>
               <TextField
-                label="Start Time (HH:MM)"
+                label={t('settings.calendar_config.start_time')}
                 type="time"
                 value={(period.start_time || '').substring(0,5)} // Display HH:MM
                 onChange={(e) => handleWorkingPeriodChange(index, 'start_time', e.target.value)}
@@ -476,7 +480,7 @@ const CalendarSettingsTab: React.FC = () => {
                 sx={{minWidth: 120}}
               />
               <TextField
-                label="End Time (HH:MM)"
+                label={t('settings.calendar_config.end_time')}
                 type="time"
                 value={(period.end_time || '').substring(0,5)} // Display HH:MM
                 onChange={(e) => handleWorkingPeriodChange(index, 'end_time', e.target.value)}
@@ -489,7 +493,7 @@ const CalendarSettingsTab: React.FC = () => {
                 onClick={() => handleWorkingPeriodChange(index, 'is_active', !period.is_active)}
                 sx={{minWidth: 100}}
               >
-                {period.is_active ? 'Active' : 'Inactive'}
+                {period.is_active ? t('common.active') : t('common.inactive')}
               </Button>
               <IconButton onClick={() => removeWorkingPeriod(index)} color="error">
                 <CancelIcon />
@@ -497,7 +501,7 @@ const CalendarSettingsTab: React.FC = () => {
             </Paper>
           ))}
           <Button variant="outlined" onClick={addWorkingPeriod} sx={{ mt: 1 }}>
-            Add Working Period
+            {t('settings.calendar_config.add_period')}
           </Button>
         </Grid>
 
@@ -508,7 +512,7 @@ const CalendarSettingsTab: React.FC = () => {
             onClick={handleSubmit}
             disabled={updateCalendarSettingsMutation.isPending}
           >
-            {updateCalendarSettingsMutation.isPending ? <CircularProgress size={24} /> : 'Save Calendar Settings'}
+            {updateCalendarSettingsMutation.isPending ? <CircularProgress size={24} /> : t('settings.calendar_config.save')}
           </Button>
         </Grid>
       </Grid>
@@ -525,6 +529,7 @@ const Settings = () => {
   const [tabValue, setTabValue] = useState(0);
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   // --- WhatsApp Tab State & Logic ---
   const [isEditingWhatsapp, setIsEditingWhatsapp] = useState(false);
@@ -724,10 +729,10 @@ const Settings = () => {
           variant="scrollable"
           scrollButtons="auto"
         >
-          <Tab label="WhatsApp Business" {...a11yProps(0)} />
-          <Tab label="Mercado Pago" {...a11yProps(1)} />
-          <Tab label="Calendar" {...a11yProps(2)} /> 
-          <Tab label="Branding" {...a11yProps(3)} />
+          <Tab label={t('settings.tabs.whatsapp')} {...a11yProps(0)} />
+          <Tab label={t('settings.tabs.mercadopago')} {...a11yProps(1)} />
+          <Tab label={t('settings.tabs.calendar')} {...a11yProps(2)} /> 
+          <Tab label={t('settings.tabs.branding')} {...a11yProps(3)} />
         </Tabs>
       </Paper>
 
@@ -740,16 +745,16 @@ const Settings = () => {
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Typography variant="h6" gutterBottom>
-                WhatsApp Business API Configuration
+                {t('settings.whatsapp.title')}
               </Typography>
                {updateError && <Alert severity="error" sx={{ mb: 2 }}>{updateError}</Alert>}
-               {updateSuccess && <Alert severity="success" sx={{ mb: 2 }}>Settings updated successfully!</Alert>}
+               {updateSuccess && <Alert severity="success" sx={{ mb: 2 }}>{t('settings.whatsapp.success')}</Alert>}
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 required
-                label="Phone Number ID"
+                label={t('settings.whatsapp.phone_id')}
                 value={formState.phone_number_id ?? ''}
                 onChange={handleWhatsappInputChange('phone_number_id')}
                 helperText="Phone number ID from WhatsApp Business API"
@@ -760,7 +765,7 @@ const Settings = () => {
               <TextField
                 fullWidth
                 required
-                label="Phone Number"
+                label={t('settings.whatsapp.phone_number')}
                 value={formState.phone_number ?? ''}
                 onChange={handleWhatsappInputChange('phone_number')}
                 helperText="Business phone number with country code (e.g., +15551234567)"
@@ -770,7 +775,7 @@ const Settings = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Verify Token"
+                label={t('settings.whatsapp.verify_token')}
                 value={formState.verification_token ?? ''}
                 onChange={handleWhatsappInputChange('verification_token')}
                 helperText="Token for Meta webhook verification (optional for update)"
@@ -794,7 +799,7 @@ const Settings = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Access Token"
+                label={t('settings.whatsapp.access_token')}
                 value={formState.access_token ?? ''}
                 onChange={handleWhatsappInputChange('access_token')}
                 helperText="Token for sending messages (required for updates)"
@@ -824,7 +829,7 @@ const Settings = () => {
                               onClick={handleWhatsappCancel}
                               disabled={mutation.isPending}
                           >
-                              Cancel
+                              {t('settings.whatsapp.cancel')}
                           </Button>
                           <Button 
                               variant="contained" 
@@ -833,7 +838,7 @@ const Settings = () => {
                               onClick={handleWhatsappSave}
                               disabled={mutation.isPending}
                           >
-                              {mutation.isPending ? 'Saving...' : 'Save Changes'}
+                              {mutation.isPending ? t('settings.whatsapp.saving') : t('settings.whatsapp.save')}
                           </Button>
                       </>
                   ) : (
@@ -842,7 +847,7 @@ const Settings = () => {
                           startIcon={<EditIcon />} 
                           onClick={() => setIsEditingWhatsapp(true)}
                       >
-                          Edit Settings
+                          {t('settings.whatsapp.edit')}
                       </Button>
                   )}
               </Grid>
@@ -860,7 +865,7 @@ const Settings = () => {
             <Grid container spacing={3}>
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>
-                  Mercado Pago Configuration
+                  {t('settings.mercadopago.title')}
                 </Typography>
                 {mpUpdateError && <Alert severity="error" sx={{ mb: 2 }}>{mpUpdateError}</Alert>}
                 {mpUpdateSuccess && <Alert severity="success" sx={{ mb: 2 }}>Settings updated successfully!</Alert>}
@@ -869,7 +874,7 @@ const Settings = () => {
                 <TextField
                   fullWidth
                   required
-                  label="Public Key"
+                  label={t('settings.mercadopago.public_key')}
                   value={mpFormState.mp_public_key}
                   onChange={handleMPInputChange('mp_public_key')}
                   helperText="Your Mercado Pago public key (mp_public_key)"
@@ -880,7 +885,7 @@ const Settings = () => {
                 <TextField
                   fullWidth
                   required
-                  label="Access Token"
+                  label={t('settings.mercadopago.access_token')}
                   value={mpFormState.access_token}
                   onChange={handleMPInputChange('access_token')}
                   helperText="Your Mercado Pago access token (access_token)"
@@ -904,7 +909,7 @@ const Settings = () => {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="Webhook Secret"
+                  label={t('settings.mercadopago.webhook_secret')}
                   value={mpFormState.webhook_secret}
                   onChange={handleMPInputChange('webhook_secret')}
                   helperText="Optional: Webhook secret for Mercado Pago notifications (webhook_secret)"
@@ -914,7 +919,7 @@ const Settings = () => {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="MP User ID"
+                  label={t('settings.mercadopago.user_id')}
                   value={mpFormState.mp_user_id}
                   onChange={handleMPInputChange('mp_user_id')}
                   helperText="Mercado Pago user ID (mp_user_id)"
@@ -930,7 +935,7 @@ const Settings = () => {
                       onClick={handleMPCancel}
                       disabled={mpMutation.isPending}
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </Button>
                     <Button
                       variant="contained"
@@ -939,7 +944,7 @@ const Settings = () => {
                       onClick={handleMPSave}
                       disabled={mpMutation.isPending}
                     >
-                      {mpMutation.isPending ? 'Saving...' : 'Save Changes'}
+                      {mpMutation.isPending ? t('settings.mercadopago.saving') : t('settings.mercadopago.save')}
                     </Button>
                   </>
                 ) : (
@@ -948,7 +953,7 @@ const Settings = () => {
                     startIcon={<EditIcon />}
                     onClick={() => setIsEditingMP(true)}
                   >
-                    Edit Settings
+                    {t('common.edit')}
                   </Button>
                 )}
               </Grid>
@@ -969,4 +974,4 @@ const Settings = () => {
   );
 };
 
-export default Settings; 
+export default Settings;

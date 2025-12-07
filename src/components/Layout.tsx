@@ -15,6 +15,8 @@ import {
   Collapse,
   ListItemButton,
   Button,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -37,11 +39,13 @@ import {
   Description as DescriptionIcon,
   EditNote as EditNoteIcon,
   ListAlt as ListAltIcon,
+  Language as LanguageIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 
 const drawerWidth = 240;
 
@@ -124,6 +128,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { logout: localLogout, token } = useAuth();
   const queryClient = useQueryClient();
   const backendUrl = window.runtimeConfig?.backendUrl;
+  const { t, i18n } = useTranslation();
+  const [anchorElLang, setAnchorElLang] = useState<null | HTMLElement>(null);
 
   const handleDrawerToggle = () => {
     setOpen(!open);
@@ -141,14 +147,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setContractsOpen(!contractsOpen);
   };
 
+  const handleLangMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorElLang(event.currentTarget);
+  };
+
+  const handleLangMenuClose = () => {
+    setAnchorElLang(null);
+  };
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+    handleLangMenuClose();
+  };
+
   const getItemOpenState = (itemText: string): boolean => {
-    if (itemText === 'Messaging') {
+    if (itemText === 'Messaging' || itemText === 'Mensagens') {
       return messagingOpen;
     }
-    if (itemText === 'Products') {
+    if (itemText === 'Products' || itemText === 'Produtos') {
       return productsOpen;
     }
-    if (itemText === 'Contracts') {
+    if (itemText === 'Contracts' || itemText === 'Contratos') {
       return contractsOpen;
     }
     return false;
@@ -175,34 +194,41 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = [
     { 
-      text: 'Messaging', 
+      text: t('layout.message_flow'), // 'Messaging' replaced for better translation key match if possible, but structure requires subitems logic
+      // Ideally keys should be used directly. For now, we will map text to translation 
+      // but to keep logic simple with "text" used for open state, we need consistent keys.
+      // Let's keep original keys for logic, and translate display text.
+      key: 'Messaging',
+      displayText: 'Messaging', // Used for icon logic fallback if needed, but better use key
       icon: <MessageIcon />,
       subItems: [
-        { text: 'Module Flow', icon: <ViewModuleIcon />, path: '/module-flow' },
-        { text: 'Message Flow', icon: <MessageIcon />, path: '/message-flow' },
+        { text: t('layout.module_flow'), icon: <ViewModuleIcon />, path: '/module-flow' },
+        { text: t('layout.message_flow'), icon: <MessageIcon />, path: '/message-flow' },
       ]
     },
-    { text: 'Client Service', icon: <PeopleIcon />, path: '/client-service' },
-    { text: 'Calendar', icon: <CalendarTodayIcon />, path: '/calendar' },
+    { text: t('layout.clients'), key: 'Clients', icon: <PeopleIcon />, path: '/client-service' },
+    { text: t('layout.calendar'), key: 'Calendar', icon: <CalendarTodayIcon />, path: '/calendar' },
     { 
-      text: 'Contracts',
+      text: t('layout.contracts'),
+      key: 'Contracts',
       icon: <DescriptionIcon />,
       subItems: [
-        { text: 'Templates', icon: <EditNoteIcon />, path: '/contracts/templates' },
-        { text: 'Client Contracts', icon: <ListAltIcon />, path: '/contracts/clients' },
+        { text: t('layout.templates'), icon: <EditNoteIcon />, path: '/contracts/templates' },
+        { text: t('layout.client_contracts'), icon: <ListAltIcon />, path: '/contracts/clients' },
       ]
     },
     { 
-      text: 'Products', 
+      text: t('layout.products'), 
+      key: 'Products',
       icon: <StorefrontIcon />,
       subItems: [
-        { text: 'Catalog', icon: <CategoryIcon />, path: '/products' },
-        { text: 'Cart', icon: <ShoppingCartIcon />, path: '/cart' },
+        { text: 'Catalog', icon: <CategoryIcon />, path: '/products' }, // Translate Catalog if needed
+        { text: t('layout.cart'), icon: <ShoppingCartIcon />, path: '/cart' },
       ]
     },
-    { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
-    { text: 'Purchases', icon: <ShoppingBagIcon />, path: '/purchases' },
-    { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+    { text: t('layout.profile'), key: 'Profile', icon: <PersonIcon />, path: '/profile' },
+    { text: t('layout.purchases'), key: 'Purchases', icon: <ShoppingBagIcon />, path: '/purchases' },
+    { text: t('layout.settings'), key: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
   if (location.pathname === '/') {
@@ -226,13 +252,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             DealCloser
           </Typography>
+          
+          <Button
+            color="inherit"
+            startIcon={<LanguageIcon />}
+            onClick={handleLangMenuOpen}
+          >
+            {i18n.language === 'pt-BR' ? 'PT' : 'EN'}
+          </Button>
+          <Menu
+            anchorEl={anchorElLang}
+            open={Boolean(anchorElLang)}
+            onClose={handleLangMenuClose}
+          >
+            <MenuItem onClick={() => changeLanguage('pt-BR')}>Português (Brasil)</MenuItem>
+            <MenuItem onClick={() => changeLanguage('en-US')}>English (US)</MenuItem>
+          </Menu>
+
           <Button
             color="inherit"
             onClick={handleLogout}
             startIcon={<LogoutIcon />}
             disabled={logoutMutation.isPending}
           >
-            {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+            {logoutMutation.isPending ? 'Logging out...' : t('layout.logout')}
           </Button>
         </Toolbar>
       </AppBarStyled>
@@ -257,21 +300,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <List>
           {menuItems.map((item) => (
             item.subItems ? (
-              <React.Fragment key={item.text}>
+              <React.Fragment key={item.key}>
                 <ListItemButton 
                   onClick={
-                    item.text === 'Messaging' ? handleMessagingClick :
-                    item.text === 'Products' ? handleProductsClick :
-                    item.text === 'Contracts' ? handleContractsClick :
+                    item.key === 'Messaging' ? handleMessagingClick :
+                    item.key === 'Products' ? handleProductsClick :
+                    item.key === 'Contracts' ? handleContractsClick :
                     undefined 
                   }
                 >
                   <ListItemIcon>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.text} />
-                  {getItemOpenState(item.text) ? <ExpandLess /> : <ExpandMore />}
+                  {getItemOpenState(item.key) ? <ExpandLess /> : <ExpandMore />}
                 </ListItemButton>
                 <Collapse 
-                  in={getItemOpenState(item.text)} 
+                  in={getItemOpenState(item.key)} 
                   timeout="auto" 
                   unmountOnExit
                 >
@@ -295,7 +338,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             ) : (
               <ListItem
                 button
-                key={item.text}
+                key={item.key}
                 onClick={() => item.path && navigate(item.path)}
                 selected={location.pathname === item.path}
               >
@@ -314,4 +357,4 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   );
 };
 
-export default Layout; 
+export default Layout;

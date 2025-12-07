@@ -32,6 +32,7 @@ import {
 import { styled } from '@mui/material/styles';
 import apiClient from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 const HeroSection = styled(Box)(({ theme }) => ({
   background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
@@ -94,6 +95,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
   const { loginWithCredentials, login } = useAuth();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -161,7 +163,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
       fullWidth
     >
       <DialogTitle>
-        {isLogin ? 'Login to Your Account' : 'Create New Account'}
+        {isLogin ? t('landing.auth.login_title') : t('landing.auth.register_title')}
         <IconButton
           aria-label="close"
           onClick={onClose}
@@ -184,7 +186,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             onClick={() => handleSocialLogin('google')}
             disabled={loading}
           >
-            Continue with Google
+            {t('landing.auth.continue_google')}
           </SocialButton>
           <SocialButton
             variant="outlined"
@@ -192,12 +194,12 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             onClick={() => handleSocialLogin('apple')}
             disabled={loading}
           >
-            Continue with iCloud
+            {t('landing.auth.continue_icloud')}
           </SocialButton>
           
           <Divider sx={{ my: 3 }}>
             <Typography color="textSecondary" variant="body2">
-              OR
+              {t('landing.auth.or')}
             </Typography>
           </Divider>
 
@@ -206,7 +208,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
               <TextField
                 autoFocus
                 margin="dense"
-                label="Full Name"
+                label={t('landing.auth.full_name')}
                 type="text"
                 fullWidth
                 variant="outlined"
@@ -217,7 +219,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
               />
               <TextField
                 margin="dense"
-                label="Phone"
+                label={t('landing.auth.phone')}
                 type="tel"
                 fullWidth
                 variant="outlined"
@@ -228,7 +230,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
               />
               <TextField
                 margin="dense"
-                label="Address"
+                label={t('landing.auth.address')}
                 type="text"
                 fullWidth
                 variant="outlined"
@@ -242,7 +244,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
 
           <TextField
             margin="dense"
-            label="Email"
+            label={t('landing.auth.email')}
             type="email"
             fullWidth
             variant="outlined"
@@ -253,7 +255,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
           />
           <TextField
             margin="dense"
-            label="Password"
+            label={t('landing.auth.password')}
             type="password"
             fullWidth
             variant="outlined"
@@ -265,7 +267,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
           
           {!isLogin && (
             <Alert severity="info" sx={{ mt: 2 }}>
-              By signing up, you agree to our Terms of Service and Privacy Policy
+              {t('landing.auth.terms')}
             </Alert>
           )}
 
@@ -280,14 +282,14 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             {loading ? (
               <CircularProgress size={24} color="inherit" />
             ) : (
-              isLogin ? 'Login' : 'Create Account'
+              isLogin ? t('landing.auth.submit_login') : t('landing.auth.submit_register')
             )}
           </Button>
         </Box>
       </DialogContent>
       <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
         <Typography variant="body2" color="textSecondary">
-          {isLogin ? "Don't have an account?" : 'Already have an account?'}
+          {isLogin ? t('landing.auth.no_account') : t('landing.auth.have_account')}
           <Button
             color="primary"
             onClick={() => {
@@ -297,7 +299,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             sx={{ ml: 1 }}
             disabled={loading}
           >
-            {isLogin ? 'Sign Up' : 'Login'}
+            {isLogin ? t('landing.auth.signup_link') : t('landing.auth.login_link')}
           </Button>
         </Typography>
       </DialogActions>
@@ -309,6 +311,7 @@ const Landing: React.FC = () => {
   const [authOpen, setAuthOpen] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(true);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleAuthClick = (login: boolean) => {
     setIsLoginMode(login);
@@ -322,23 +325,23 @@ const Landing: React.FC = () => {
   const features = [
     {
       icon: <WhatsApp fontSize="large" color="primary" />,
-      title: 'WhatsApp Integration',
-      description: 'Manage all your WhatsApp Business conversations in one place.',
+      title: t('landing.whatsapp_title'),
+      description: t('landing.whatsapp_desc'),
     },
     {
       icon: <CalendarMonth fontSize="large" color="primary" />,
-      title: 'Automatic Scheduling',
-      description: 'Sync automatically with Google Calendar to manage appointments.',
+      title: t('landing.schedule_title'),
+      description: t('landing.schedule_desc'),
     },
     {
       icon: <Payment fontSize="large" color="primary" />,
-      title: 'Integrated Payments',
-      description: 'Receive payments directly through WhatsApp with MercadoPago.',
+      title: t('landing.payments_title'),
+      description: t('landing.payments_desc'),
     },
     {
       icon: <Business fontSize="large" color="primary" />,
-      title: 'Multi-tenant',
-      description: 'Manage multiple businesses in a single platform.',
+      title: t('landing.multitenant_title'),
+      description: t('landing.multitenant_desc'),
     },
   ];
 
@@ -352,10 +355,10 @@ const Landing: React.FC = () => {
             style={{ width: '200px', marginBottom: '2rem' }}
           />
           <Typography variant="h2" component="h1" gutterBottom>
-            Automate Your Business with Smart WhatsApp Flows
+            {t('landing.title')}
           </Typography>
           <Typography variant="h5" component="p" color="rgba(255, 255, 255, 0.8)" gutterBottom>
-            Streamline client interactions, scheduling, contracts, and payments - all through WhatsApp.
+            {t('landing.subtitle')}
           </Typography>
           <Link to="/register" style={{ textDecoration: 'none' }}> 
             <AuthButton 
@@ -363,7 +366,7 @@ const Landing: React.FC = () => {
               color="secondary" 
               size="large" 
             >
-              Get Started Now
+              {t('landing.get_started')}
             </AuthButton>
           </Link>
           {/* Add a Login button to trigger the AuthDialog */}
@@ -374,14 +377,14 @@ const Landing: React.FC = () => {
             onClick={() => handleAuthClick(true)} // Open dialog in login mode
             sx={{ ml: 2 }} // Add some margin
           >
-            Login
+            {t('landing.login')}
           </AuthButton>
         </Container>
       </HeroSection>
 
       <Container sx={{ py: 8 }} maxWidth="lg">
         <Typography variant="h3" component="h2" textAlign="center" gutterBottom>
-          Features
+          {t('landing.features_title')}
         </Typography>
         <Grid container spacing={4} sx={{ mt: 4 }}>
           {features.map((feature, index) => (
@@ -412,4 +415,4 @@ const Landing: React.FC = () => {
   );
 };
 
-export default Landing; 
+export default Landing;

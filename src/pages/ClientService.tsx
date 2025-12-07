@@ -45,10 +45,12 @@ import {
     TenantData,
 } from '../lib/api';
 import ClientDetailModal from '../components/ClientDetailModal';
+import { useTranslation } from 'react-i18next';
 
 const ClientService: React.FC = () => {
   const { token } = useAuth();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
 
   const [openDialog, setOpenDialog] = useState(false);
   const [openDetailModal, setOpenDetailModal] = useState(false);
@@ -81,13 +83,13 @@ const ClientService: React.FC = () => {
       setOpenDialog(false);
       setNewClient({});
       setSaveError(null);
-      setSnackbarMessage('Client created successfully!');
+      setSnackbarMessage(t('clients.create_success'));
       setShowSuccessSnackbar(true);
       console.log('Client created:', data);
     },
     onError: (error) => {
       console.error("Failed to create client:", error);
-      setSaveError(error.message || 'Failed to save client. Please check the details and try again.');
+      setSaveError(error.message || t('clients.create_error'));
     },
   });
 
@@ -99,7 +101,7 @@ const ClientService: React.FC = () => {
       );
       queryClient.invalidateQueries({ queryKey: ['clients', token] });
       setSelectedClient(updatedClient);
-      setSnackbarMessage('Client updated successfully!');
+      setSnackbarMessage(t('clients.update_success'));
       setShowSuccessSnackbar(true);
     },
     onError: (error) => {
@@ -111,7 +113,7 @@ const ClientService: React.FC = () => {
     mutationFn: (clientId) => deleteClient(clientId, token),
     onSuccess: (_, clientId) => {
       queryClient.invalidateQueries({ queryKey: ['clients', token] });
-      setSnackbarMessage('Client deleted successfully!');
+      setSnackbarMessage(t('clients.delete_success'));
       setShowSuccessSnackbar(true);
       handleCloseDetailModal();
     },
@@ -128,7 +130,7 @@ const ClientService: React.FC = () => {
 
   const handleSaveClient = () => {
     if (!newClient.first_name || !newClient.surname || !newClient.client_identification) {
-        setSaveError('First Name, Surname, and CPF/CNPJ (Client Identification) are required.');
+        setSaveError(t('clients.required_fields'));
         return;
     }
     setSaveError(null);
@@ -210,14 +212,14 @@ const ClientService: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Client Management</Typography>
+        <Typography variant="h4">{t('layout.clients')}</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleAddClient}
           disabled={isLoading}
         >
-          New Client
+          {t('clients.new_client')}
         </Button>
       </Box>
 
@@ -226,8 +228,8 @@ const ClientService: React.FC = () => {
         <TextField
           fullWidth
           variant="outlined"
-          label="Search Clients (Name, Phone, CPF/CNPJ)"
-          placeholder="Type to search..."
+          label={t('clients.search_placeholder')}
+          placeholder={t('common.search')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           disabled={isLoading}
@@ -267,7 +269,7 @@ const ClientService: React.FC = () => {
                       CPF/CNPJ: {client.client_identification || 'N/A'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Phone: {client.client_phone_number || 'N/A'}
+                      {t('common.phone')}: {client.client_phone_number || 'N/A'}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -277,7 +279,7 @@ const ClientService: React.FC = () => {
           {filteredClients.length === 0 && !isLoading && (
             <Grid item xs={12}>
                 <Typography sx={{ textAlign: 'center', mt: 4 }}>
-                    {searchTerm ? 'No clients match your search.' : 'No clients found.'}
+                    {searchTerm ? t('clients.no_match') : t('clients.no_clients')}
                 </Typography>
             </Grid>
            )}
@@ -285,13 +287,13 @@ const ClientService: React.FC = () => {
       )}
 
       <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>New Client</DialogTitle>
+        <DialogTitle>{t('clients.new_client')}</DialogTitle>
         <DialogContent>
           {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
           <TextField
             autoFocus
             margin="dense"
-            label="First Name"
+            label={t('landing.auth.full_name')}
             fullWidth
             required
             value={newClient.first_name ?? ''}
@@ -300,7 +302,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="Surname"
+            label={t('clients.surname')} // Need to add to i18n
             fullWidth
             required
             value={newClient.surname ?? ''}
@@ -309,7 +311,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="CPF/CNPJ (Client Identification)"
+            label="CPF/CNPJ"
             fullWidth
             required
             value={newClient.client_identification ?? ''}
@@ -318,7 +320,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="Email"
+            label={t('common.email')}
             type="email"
             fullWidth
             value={newClient.email ?? ''}
@@ -327,7 +329,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="Phone"
+            label={t('common.phone')}
             fullWidth
             value={newClient.client_phone_number ?? ''}
             onChange={handleInputChange('client_phone_number')}
@@ -335,7 +337,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="Address"
+            label={t('common.address')}
             fullWidth
             value={newClient.address ?? ''}
             onChange={handleInputChange('address')}
@@ -343,7 +345,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="City"
+            label={t('clients.city')}
             fullWidth
             value={newClient.city ?? ''}
             onChange={handleInputChange('city')}
@@ -351,7 +353,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="State"
+            label={t('clients.state')}
             fullWidth
             value={newClient.state ?? ''}
             onChange={handleInputChange('state')}
@@ -359,7 +361,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="Zip Code"
+            label={t('clients.zip_code')}
             fullWidth
             value={newClient.zip_code ?? ''}
             onChange={handleInputChange('zip_code')}
@@ -367,7 +369,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="Country"
+            label={t('clients.country')}
             fullWidth
             value={newClient.country ?? 'Brasil'}
             onChange={handleInputChange('country')}
@@ -375,7 +377,7 @@ const ClientService: React.FC = () => {
           />
           <TextField
             margin="dense"
-            label="Date of Birth"
+            label={t('clients.dob')}
             type="date"
             fullWidth
             InputLabelProps={{ shrink: true }}
@@ -385,13 +387,13 @@ const ClientService: React.FC = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} disabled={createClientMutation.isPending}>Cancel</Button>
+          <Button onClick={handleCloseDialog} disabled={createClientMutation.isPending}>{t('common.cancel')}</Button>
           <Button 
             onClick={handleSaveClient} 
             variant="contained" 
             disabled={createClientMutation.isPending}
           >
-            {createClientMutation.isPending ? <CircularProgress size={24} /> : 'Save'}
+            {createClientMutation.isPending ? <CircularProgress size={24} /> : t('common.save')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -421,4 +423,4 @@ const ClientService: React.FC = () => {
   );
 };
 
-export default ClientService; 
+export default ClientService;

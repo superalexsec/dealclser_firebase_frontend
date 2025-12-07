@@ -50,6 +50,7 @@ import apiClient,
   updateMessageFlowSteps,
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 // --- Component --- 
 
@@ -62,6 +63,7 @@ interface StepUI {
 const MessageFlow = () => {
   const queryClient = useQueryClient();
   const { token } = useAuth();
+  const { t } = useTranslation();
   const [selectedModuleId, setSelectedModuleId] = useState<string>('');
   const [currentFlowId, setCurrentFlowId] = useState<string | null>(null);
   const [steps, setSteps] = useState<StepUI[]>([]); // Local state for editing steps
@@ -285,19 +287,19 @@ const MessageFlow = () => {
     <Box>
       <Grid container spacing={2} sx={{ mb: 3, alignItems: 'center' }}>
         <Grid item>
-           <Typography variant="h4">Message Flow Steps</Typography>
+           <Typography variant="h4">{t('message_flow.title')}</Typography>
         </Grid>
         <Grid item xs>
           <FormControl fullWidth disabled={isLoadingModules || isUpdatingSteps}>
-            <InputLabel id="module-select-label">Select Module</InputLabel>
+            <InputLabel id="module-select-label">{t('message_flow.select_module')}</InputLabel>
             <Select
               labelId="module-select-label"
               value={selectedModuleId}
               onChange={handleModuleChange}
-              label="Select Module"
+              label={t('message_flow.select_module')}
             >
-              {isLoadingModules && <MenuItem disabled><em>Loading modules...</em></MenuItem>}
-              {!isLoadingModules && availableModules.length === 0 && <MenuItem disabled><em>No modules found</em></MenuItem>}
+              {isLoadingModules && <MenuItem disabled><em>{t('message_flow.loading_modules')}</em></MenuItem>}
+              {!isLoadingModules && availableModules.length === 0 && <MenuItem disabled><em>{t('message_flow.no_modules_found')}</em></MenuItem>}
               {availableModules.map((moduleEntry) => (
                  // Use module_id for key/value
                 <MenuItem key={moduleEntry.module_id} value={moduleEntry.module_id}>
@@ -317,7 +319,7 @@ const MessageFlow = () => {
              startIcon={<CancelIcon />}
              sx={{ mr: 1 }} // Add margin
            >
-            Reset Changes
+            {t('common.reset')}
           </Button>
            <Button
              variant="contained"
@@ -326,7 +328,7 @@ const MessageFlow = () => {
              disabled={!hasChanges || isUpdatingSteps || isLoadingFlows || !isEditingAllowed}
              startIcon={<SaveIcon />}
            >
-            {isUpdatingSteps ? 'Saving...' : 'Save Changes'}
+            {isUpdatingSteps ? t('message_flow.saving_changes') : t('module_flow.save_changes')}
           </Button>
          </Grid>
         <Grid item>
@@ -337,7 +339,7 @@ const MessageFlow = () => {
              onClick={handleAddStep}
              disabled={!currentFlowId || isLoading || isUpdatingSteps || !isEditingAllowed}
            >
-            Add Message Step
+            {t('message_flow.add_step')}
           </Button>
         </Grid>
       </Grid>
@@ -345,32 +347,26 @@ const MessageFlow = () => {
       {/* --- Alerts --- */} 
       {hasLoadingError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {`Failed to load data: ${loadingError?.message || 'Unknown error'}`}
+          {`${t('message_flow.failed_load')}: ${loadingError?.message || t('common.unknown_error')}`}
         </Alert>
       )}
       {hasUpdateError && (
          <Alert severity="error" sx={{ mb: 2 }}>
-           {`Failed to update steps: ${updateError?.message || 'Unknown error'}`}
+           {`${t('message_flow.failed_update')}: ${updateError?.message || t('common.unknown_error')}`}
          </Alert>
        )}
-      {/* This alert is no longer needed as other modules cannot be selected.
-      {!isEditingAllowed && selectedModuleId && !isLoading && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Editing for the "{selectedModule?.module.name}" module is not permitted. You can only edit the "welcome" and "goodbye" modules.
-        </Alert>
-      )} 
-      */}
+      
       {!hasLoadingError && !hasUpdateError && isUpdatingSteps && (
-          <Alert severity="info" sx={{ mb: 2 }}>Saving changes...</Alert>
+          <Alert severity="info" sx={{ mb: 2 }}>{t('message_flow.saving_changes')}</Alert>
        )}
       {selectedModuleId && !isLoadingFlows && !currentFlowId && !hasLoadingError && (
          <Alert severity="warning" sx={{ mb: 2 }}>
-           No message flow found or configured for the selected module.
+           {t('message_flow.no_flow')}
          </Alert>
       )}
       {currentFlowId && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Editing steps for flow: {messageFlows.find(f => f.id === currentFlowId)?.name || currentFlowId.substring(0,8)}
+          {t('message_flow.editing_flow')}: {messageFlows.find(f => f.id === currentFlowId)?.name || currentFlowId.substring(0,8)}
         </Alert>
       )}
 
@@ -391,7 +387,7 @@ const MessageFlow = () => {
                   <List {...provided.droppableProps} ref={provided.innerRef} sx={{ p: 2 }}>
                     {steps.length === 0 && !isLoading && !hasLoadingError && (
                       <ListItem>
-                        <ListItemText primary="No steps defined for this flow yet. Click 'Add Message Step' to begin." />
+                        <ListItemText primary={t('message_flow.no_steps')} />
                       </ListItem>
                     )}
                     {steps.map((step, index) => (
@@ -421,28 +417,28 @@ const MessageFlow = () => {
                               <IconButton
                                  onClick={() => handleMoveStep(step.id, 'up')}
                                  disabled={index === 0 || isUpdatingSteps || !isEditingAllowed}
-                                 aria-label="Move Up"
+                                 aria-label={t('message_flow.move_up')}
                               >
                                 <ArrowUpIcon />
                               </IconButton>
                               <IconButton
                                  onClick={() => handleMoveStep(step.id, 'down')}
                                  disabled={index === steps.length - 1 || isUpdatingSteps || !isEditingAllowed}
-                                 aria-label="Move Down"
+                                 aria-label={t('message_flow.move_down')}
                               >
                                 <ArrowDownIcon />
                               </IconButton>
                                <IconButton 
                                  onClick={() => handleEditStep(step)} 
                                  disabled={isUpdatingSteps || !isEditingAllowed}
-                                 aria-label="Edit Step"
+                                 aria-label={t('message_flow.edit_step')}
                                >
                                  <EditIcon />
                                </IconButton>
                                <IconButton 
                                  onClick={() => handleDeleteStep(step.id)} 
                                  disabled={isUpdatingSteps || !isEditingAllowed}
-                                 aria-label="Delete Step"
+                                 aria-label={t('message_flow.delete_step')}
                                >
                                  <DeleteIcon />
                                </IconButton>
@@ -462,31 +458,31 @@ const MessageFlow = () => {
       {/* --- Edit/Add Dialog --- */} 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          {editingStep ? 'Edit Message Step' : 'Add New Message Step'}
+          {editingStep ? t('message_flow.edit_step') : t('message_flow.new_step')}
         </DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Message Content"
+            label={t('message_flow.message_content')}
             fullWidth
             multiline
             rows={4}
             value={newStepContent}
             onChange={(e) => setNewStepContent(e.target.value)}
-            helperText="Enter the exact text message to be sent."
+            helperText={t('message_flow.content_helper')}
           />
           {/* Removed other fields like type, wait for response etc. */}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenDialog(false)} disabled={isUpdatingSteps}>Cancel</Button>
+          <Button onClick={() => setOpenDialog(false)} disabled={isUpdatingSteps}>{t('common.cancel')}</Button>
           <Button 
             onClick={handleSaveStep} 
             variant="contained" 
             color="primary"
             disabled={!newStepContent.trim() || isUpdatingSteps}
           >
-            {isUpdatingSteps ? 'Saving...' : 'Save Step'}
+            {isUpdatingSteps ? t('common.saving') : t('message_flow.save_step')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -494,4 +490,4 @@ const MessageFlow = () => {
   );
 };
 
-export default MessageFlow; 
+export default MessageFlow;
