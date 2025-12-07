@@ -257,8 +257,9 @@ const MessageFlow = () => {
 
   // Memoize filtered modules for dropdown to avoid re-renders
   const availableModules = useMemo(() => {
-     // Can add filtering here if needed (e.g., only show modules that *can* have flows)
-     return modules;
+     // --- NEW: Only show modules that are allowed to be edited ---
+     const visibleModules = ['welcome', 'goodbye'];
+     return modules.filter(moduleEntry => visibleModules.includes(moduleEntry.module.name));
   }, [modules]);
 
   // Determine combined loading/error states
@@ -267,6 +268,18 @@ const MessageFlow = () => {
   const loadingError = moduleLoadingError || flowLoadingError;
   const hasUpdateError = isErrorUpdatingSteps;
   const updateError = updatingStepsError;
+
+  // --- NEW: Determine if the selected module is editable ---
+  const selectedModule = useMemo(() => {
+    return modules.find(m => m.module_id === selectedModuleId);
+  }, [modules, selectedModuleId]);
+
+  const isEditingAllowed = useMemo(() => {
+    if (!selectedModule) return false;
+    const editableModules = ['welcome', 'goodbye'];
+    return editableModules.includes(selectedModule.module.name);
+  }, [selectedModule]);
+
 
   return (
     <Box>
@@ -300,7 +313,7 @@ const MessageFlow = () => {
            <Button
              variant="outlined"
              onClick={handleResetChanges}
-             disabled={!hasChanges || isUpdatingSteps || isLoadingFlows}
+             disabled={!hasChanges || isUpdatingSteps || isLoadingFlows || !isEditingAllowed}
              startIcon={<CancelIcon />}
              sx={{ mr: 1 }} // Add margin
            >
@@ -310,7 +323,7 @@ const MessageFlow = () => {
              variant="contained"
              color="primary"
              onClick={handleSaveChanges}
-             disabled={!hasChanges || isUpdatingSteps || isLoadingFlows}
+             disabled={!hasChanges || isUpdatingSteps || isLoadingFlows || !isEditingAllowed}
              startIcon={<SaveIcon />}
            >
             {isUpdatingSteps ? 'Saving...' : 'Save Changes'}
@@ -322,7 +335,7 @@ const MessageFlow = () => {
              color="primary"
              startIcon={<AddIcon />}
              onClick={handleAddStep}
-             disabled={!currentFlowId || isLoading || isUpdatingSteps}
+             disabled={!currentFlowId || isLoading || isUpdatingSteps || !isEditingAllowed}
            >
             Add Message Step
           </Button>
@@ -340,6 +353,13 @@ const MessageFlow = () => {
            {`Failed to update steps: ${updateError?.message || 'Unknown error'}`}
          </Alert>
        )}
+      {/* This alert is no longer needed as other modules cannot be selected.
+      {!isEditingAllowed && selectedModuleId && !isLoading && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Editing for the "{selectedModule?.module.name}" module is not permitted. You can only edit the "welcome" and "goodbye" modules.
+        </Alert>
+      )} 
+      */}
       {!hasLoadingError && !hasUpdateError && isUpdatingSteps && (
           <Alert severity="info" sx={{ mb: 2 }}>Saving changes...</Alert>
        )}
@@ -375,7 +395,7 @@ const MessageFlow = () => {
                       </ListItem>
                     )}
                     {steps.map((step, index) => (
-                      <Draggable key={step.id} draggableId={step.id} index={index}>
+                      <Draggable key={step.id} draggableId={step.id} index={index} isDragDisabled={!isEditingAllowed}>
                         {(provided, snapshot) => (
                           <ListItem
                             ref={provided.innerRef}
@@ -400,28 +420,28 @@ const MessageFlow = () => {
                             <ListItemSecondaryAction>
                               <IconButton
                                  onClick={() => handleMoveStep(step.id, 'up')}
-                                 disabled={index === 0 || isUpdatingSteps}
+                                 disabled={index === 0 || isUpdatingSteps || !isEditingAllowed}
                                  aria-label="Move Up"
                               >
                                 <ArrowUpIcon />
                               </IconButton>
                               <IconButton
                                  onClick={() => handleMoveStep(step.id, 'down')}
-                                 disabled={index === steps.length - 1 || isUpdatingSteps}
+                                 disabled={index === steps.length - 1 || isUpdatingSteps || !isEditingAllowed}
                                  aria-label="Move Down"
                               >
                                 <ArrowDownIcon />
                               </IconButton>
                                <IconButton 
                                  onClick={() => handleEditStep(step)} 
-                                 disabled={isUpdatingSteps}
+                                 disabled={isUpdatingSteps || !isEditingAllowed}
                                  aria-label="Edit Step"
                                >
                                  <EditIcon />
                                </IconButton>
                                <IconButton 
                                  onClick={() => handleDeleteStep(step.id)} 
-                                 disabled={isUpdatingSteps}
+                                 disabled={isUpdatingSteps || !isEditingAllowed}
                                  aria-label="Delete Step"
                                >
                                  <DeleteIcon />
