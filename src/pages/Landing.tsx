@@ -351,7 +351,7 @@ const Landing: React.FC = () => {
       <HeroSection>
         <Container maxWidth="md">
           <img
-            src="/logo_main.png"
+            src="/3D_Logo.png"
             alt="Próximo Negócio Logo"
             style={{ width: '100%', maxWidth: '300px', marginBottom: '2rem' }}
           />
@@ -361,6 +361,35 @@ const Landing: React.FC = () => {
           <Typography variant="h5" component="p" color="rgba(255, 255, 255, 0.8)" gutterBottom>
             {t('landing.subtitle')}
           </Typography>
+
+          <Box sx={{
+            position: 'relative',
+            paddingBottom: '56.25%', // 16:9 aspect ratio
+            height: 0,
+            overflow: 'hidden',
+            maxWidth: '800px',
+            width: '100%',
+            background: '#000',
+            margin: '2rem auto',
+            borderRadius: 2,
+            boxShadow: 3,
+          }}>
+            <iframe
+              src="https://www.youtube.com/embed/8G7NK9G_1OE"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+              }}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title="Próximo Negócio Video"
+            />
+          </Box>
+
           <Link to="/register" style={{ textDecoration: 'none' }}> 
             <AuthButton 
               variant="contained" 
