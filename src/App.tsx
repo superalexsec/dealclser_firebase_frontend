@@ -6,6 +6,9 @@ import { theme } from './theme';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import ModuleFlow from './pages/ModuleFlow';
+import EmailVerification from './pages/EmailVerification';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import MessageFlow from './pages/MessageFlow';
 import Settings from './pages/Settings';
 import ClientService from './pages/ClientService';
@@ -47,6 +50,9 @@ const App: React.FC = () => {
               {/* Public routes */}
               <Route path="/" element={<Landing />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/verify-email" element={<EmailVerification />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/payments/:sessionId" element={<PaymentPage />} />
               <Route path="/contracts/:tenantId/:clientId/:contractDbId" element={<PublicContractSigningPage />} />
               

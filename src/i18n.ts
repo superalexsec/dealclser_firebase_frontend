@@ -132,6 +132,8 @@ i18n
               have_account: 'Already have an account?',
               signup_link: 'Sign Up',
               login_link: 'Login',
+              forgot_password: 'Forgot Password?',
+              verify_code: 'Verify Reset Code',
             }
           },
           settings: {
@@ -314,12 +316,13 @@ i18n
             error_clear: 'Failed to clear cart.',
             required: 'Please select a client, product, and valid quantity.',
           },
-          profile: {
+            profile: {
             title: 'Profile',
             person_name: 'Person Name',
             tenant_name: 'Tenant / Company Name',
             login_email: 'Login Email',
             edit_profile: 'Edit Profile',
+            change_password: 'Change Password',
             delete_account: 'Delete Account',
             deleting: 'Deleting...',
             confirm_delete_title: 'Confirm Account Deletion',
@@ -460,6 +463,8 @@ i18n
               have_account: 'Já tem uma conta?',
               signup_link: 'Cadastre-se',
               login_link: 'Entrar',
+              forgot_password: 'Esqueceu a senha?',
+              verify_code: 'Verificar Código',
             }
           },
           settings: {
@@ -642,12 +647,13 @@ i18n
             error_clear: 'Falha ao limpar carrinho.',
             required: 'Por favor, selecione um cliente, produto e uma quantidade válida.',
           },
-          profile: {
+            profile: {
             title: 'Perfil',
             person_name: 'Nome da Pessoa',
             tenant_name: 'Nome da Empresa / Inquilino',
             login_email: 'E-mail de Login',
             edit_profile: 'Editar Perfil',
+            change_password: 'Alterar Senha',
             delete_account: 'Excluir Conta',
             deleting: 'Excluindo...',
             confirm_delete_title: 'Confirmar Exclusão da Conta',

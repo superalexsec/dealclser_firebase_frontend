@@ -57,10 +57,8 @@ const Register: React.FC = () => {
     mutationFn: registerTenant,
     onSuccess: (data) => {
       console.log('Registration successful:', data);
-      // Redirect to login or dashboard after successful registration
-      // For now, let's redirect to the landing page as login is not implemented
-      navigate('/'); 
-      // Consider adding a success message before redirecting
+      // Redirect to email verification page, passing the email
+      navigate('/verify-email', { state: { email: formData.email } });
     },
     onError: (err) => {
       console.error('Registration failed:', err);

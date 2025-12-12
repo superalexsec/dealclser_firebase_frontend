@@ -65,6 +65,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Login API call failed:", error);
       // Rethrow or handle specific error messages from backend if available
       if (error.response && error.response.data && error.response.data.detail) {
+        // Check for specific "Email not verified" message
+        if (error.response.data.detail === 'Email not verified. Please verify your email first.') {
+             // You might want to return this specific error to the UI so it can redirect
+             const err: any = new Error(error.response.data.detail);
+             err.isUnverified = true;
+             throw err;
+        }
         throw new Error(error.response.data.detail);
       } else {
         throw new Error('Login failed. Please try again.');

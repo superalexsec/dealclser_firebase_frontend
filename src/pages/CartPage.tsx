@@ -14,6 +14,7 @@ import {
     Paper,
     Divider,
     Grid,
+    Snackbar,
 } from '@mui/material';
 import {
     ShoppingCart as ShoppingCartIcon,
@@ -364,8 +365,8 @@ const CartPage: React.FC = () => {
                 </Paper>
             )}
 
-            {/* Snackbar for messages - TODO: Implement Snackbar component */} 
-            {/* <Snackbar open={showSnackbar} autoHideDuration={4000} onClose={() => setShowSnackbar(false)} message={snackbarMessage} /> */} 
+            {/* Snackbar for messages */} 
+            <Snackbar open={showSnackbar} autoHideDuration={4000} onClose={() => setShowSnackbar(false)} message={snackbarMessage} />
         </Box>
     );
 };

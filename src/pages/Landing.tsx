@@ -116,23 +116,28 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
         navigate('/profile');
       } else {
         console.warn('Registration attempt via AuthDialog');
-        const response = await apiClient.post<AuthResponse>('/api/auth/register', {
+        // Updated to correct endpoint: /register (without /auth prefix)
+        const response = await apiClient.post<AuthResponse>('/register', {
           email,
           password,
           name,
           phone,
           address,
         });
-        if (response.data.token) {
-          login(response.data.token);
-          onClose();
-          navigate('/profile');
-        } else {
-          throw new Error('Registration via dialog failed');
-        }
+        // Registration successful (201). Backend sends email.
+        // Redirect to email verification page.
+        onClose();
+        navigate('/verify-email', { state: { email } });
       }
     } catch (err: any) {
       console.error("AuthDialog Error:", err);
+      // Check for unverified email error from Login attempt
+      if (err.isUnverified && email) {
+          onClose();
+          navigate('/verify-email', { state: { email } });
+          return;
+      }
+      
       setError(err.message || 'Authentication failed. Please check details and try again.');
     } finally {
       setLoading(false);
@@ -265,6 +270,22 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
             sx={{ mb: 2 }}
           />
           
+          {isLogin && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+              <Button 
+                color="primary" 
+                onClick={() => {
+                  onClose();
+                  navigate('/forgot-password');
+                }}
+                size="small"
+                sx={{ textTransform: 'none' }}
+              >
+                {t('landing.auth.forgot_password', 'Esqueceu a senha?')}
+              </Button>
+            </Box>
+          )}
+
           {!isLogin && (
             <Alert severity="info" sx={{ mt: 2 }}>
               {t('landing.auth.terms')}

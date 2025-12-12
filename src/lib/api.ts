@@ -85,6 +85,9 @@ export interface TenantUpdate {
   person_name?: string;
   address?: string;
   client_register_custom_question?: string;
+  otp?: string;
+  email?: string;
+  password?: string;
 }
 
 // --- Settings Types (WhatsApp Config) ---
@@ -213,6 +216,48 @@ export const updateMessageFlowSteps = async (
   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
   await apiClient.put(`/flows/message-flows/${flowId}/steps`, payload, config);
 }; 
+
+// --- Auth Types ---
+export interface VerifyEmailPayload {
+  email: string;
+  otp: string;
+}
+
+export interface RequestMfaPayload {
+  email: string;
+}
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  otp: string;
+  new_password: string;
+}
+
+// --- Auth API Functions ---
+
+// Verify Email with OTP (Correctly prefixed with /auth)
+export const verifyEmailOtp = async (payload: VerifyEmailPayload): Promise<void> => {
+  await apiClient.post('/auth/verify-email-otp', payload);
+};
+
+// Request MFA OTP (Correctly prefixed with /auth)
+export const requestMfa = async (payload: RequestMfaPayload): Promise<void> => {
+    await apiClient.post('/auth/request-mfa', payload);
+};
+
+// Forgot Password - Request OTP (Correctly prefixed with /auth)
+export const forgotPassword = async (payload: ForgotPasswordPayload): Promise<void> => {
+    await apiClient.post('/auth/forgot-password', payload);
+};
+
+// Reset Password with OTP (Correctly prefixed with /auth)
+export const resetPassword = async (payload: ResetPasswordPayload): Promise<void> => {
+    await apiClient.post('/auth/reset-password', payload);
+};
 
 // --- Profile API Functions ---
 export const fetchTenantData = async (token?: string | null): Promise<TenantData> => {

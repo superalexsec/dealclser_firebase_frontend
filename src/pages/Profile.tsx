@@ -32,6 +32,7 @@ import {
   Cancel as CancelIcon,
   Logout as LogoutIcon,
   QuestionAnswer as QuestionIcon,
+  LockReset as LockResetIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient, { 
@@ -40,11 +41,21 @@ import apiClient, {
     fetchTenantData, 
     updateTenantData, 
     logoutTenant, 
-    deleteTenant 
+    deleteTenant,
+    requestMfa
 } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+
+// Extended type to include OTP
+interface TenantUpdateWithOtp extends TenantUpdate {
+  otp?: string;
+  email?: string;
+  password?: string;
+  // new_password field is not standard in TenantUpdate but might be needed if UI allows password change.
+  // Assuming 'password' field in TenantUpdate is for updating it.
+}
 
 const Profile = () => {
   const { token, logout } = useAuth();
@@ -54,9 +65,16 @@ const Profile = () => {
 
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [formState, setFormState] = useState<TenantUpdate>({});
+  const [formState, setFormState] = useState<TenantUpdateWithOtp>({});
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<boolean>(false);
+  
+  // MFA State
+  const [openMfaDialog, setOpenMfaDialog] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaError, setMfaError] = useState('');
+  const [pendingUpdate, setPendingUpdate] = useState<TenantUpdateWithOtp | null>(null);
 
   const { data: profile, isLoading, error: queryError } = useQuery<TenantData, Error>({
     queryKey: ['tenantData', token],
@@ -84,17 +102,30 @@ const Profile = () => {
     }
   }, [profile, isEditing]);
 
-  const updateMutation = useMutation<TenantData, Error, TenantUpdate>({
+  const updateMutation = useMutation<TenantData, Error, TenantUpdateWithOtp>({
     mutationFn: (updateData) => updateTenantData(updateData, token),
     onSuccess: (data) => {
       queryClient.setQueryData(['tenantData', token], data);
       setIsEditing(false);
       setUpdateError(null);
       setUpdateSuccess(true);
+      setOpenMfaDialog(false);
+      setOtp('');
+      setPendingUpdate(null);
       setTimeout(() => setUpdateSuccess(false), 3000);
     },
-    onError: (error) => {
-      setUpdateError(error.message || t('profile.error_update'));
+    onError: (error: any) => {
+      console.error('Update failed:', error);
+      // Check if error is related to missing OTP or invalid OTP for sensitive actions
+      // Note: Backend might return 403 or specific message
+      const errorMsg = error.message || t('profile.error_update');
+      
+      // If we are in the MFA dialog and it failed
+      if (openMfaDialog) {
+          setMfaError(error.response?.data?.detail || 'Invalid OTP or update failed.');
+      } else {
+          setUpdateError(errorMsg);
+      }
       setUpdateSuccess(false);
     },
   });
@@ -130,20 +161,50 @@ const Profile = () => {
     handleCloseDeleteDialog();
   };
 
-  const handleInputChange = (field: keyof TenantUpdate) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (field: keyof TenantUpdateWithOtp) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormState({
       ...formState,
       [field]: event.target.value,
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formState.name || !formState.person_name || !formState.phone || !formState.address) {
       setUpdateError(t('profile.all_required'));
       return;
     }
     setUpdateError(null);
-    updateMutation.mutate(formState);
+
+    // Enforce MFA for all updates as per backend requirement
+    setPendingUpdate(formState);
+    setMfaError('');
+    setOtp('');
+    setMfaLoading(true);
+    try {
+        // Request MFA
+        if (profile?.email) {
+            await requestMfa({ email: profile.email });
+            setOpenMfaDialog(true);
+        } else {
+            setUpdateError('Cannot verify identity: Email missing.');
+            setPendingUpdate(null);
+        }
+    } catch (err) {
+        setUpdateError('Failed to send verification code.');
+        setPendingUpdate(null);
+    } finally {
+        setMfaLoading(false);
+    }
+  };
+
+  const handleMfaSubmit = () => {
+      if (!otp) {
+          setMfaError('Please enter the code.');
+          return;
+      }
+      if (pendingUpdate) {
+          updateMutation.mutate({ ...pendingUpdate, otp });
+      }
   };
 
   const handleCancel = () => {
@@ -174,11 +235,11 @@ const Profile = () => {
     );
   }
 
-  const displayError = queryError || deleteMutation.error || updateMutation.error || logoutMutation.error;
+  const displayError = queryError || deleteMutation.error || (updateMutation.error && !openMfaDialog) || logoutMutation.error;
   if (displayError && !isEditing) {
      return (
        <Alert severity="error" sx={{ mb: 2}}>
-         {t('common.unknown_error')}: {displayError instanceof Error ? displayError.message : displayError || t('common.unknown_error')}
+         {t('common.unknown_error')}: {displayError instanceof Error ? displayError.message : String(displayError) || t('common.unknown_error')}
        </Alert>
      );
   }
@@ -264,7 +325,7 @@ const Profile = () => {
                    <TextField fullWidth label={t('common.address')} variant="standard" value={formState.address ?? ''} onChange={handleInputChange('address')} required />
                  ) : (
                    <ListItemText primary={t('common.address')} secondary={profile.address} />
-                 )}
+                   )}
               </ListItem>
               <ListItem>
                 <ListItemIcon>
@@ -327,16 +388,18 @@ const Profile = () => {
 
                 <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', sm: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
                     {!isEditing && (
+                      <>
                         <Button
                           variant="outlined"
-                          color="warning"
-                          startIcon={<LogoutIcon />}
-                          onClick={() => logoutMutation.mutate()}
+                          color="info"
+                          startIcon={<LockResetIcon />}
+                          onClick={() => navigate('/forgot-password')}
                           disabled={logoutMutation.isPending || deleteMutation.isPending}
                           fullWidth
                         >
-                          {logoutMutation.isPending ? t('profile.logging_out') : t('layout.logout')}
+                          {t('profile.change_password')}
                         </Button>
+                      </>
                     )}
 
                     <Button
@@ -375,6 +438,34 @@ const Profile = () => {
           </Button>
           <Button onClick={handleConfirmDelete} color="error">
             {t('profile.confirm_delete')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* MFA Dialog */}
+      <Dialog open={openMfaDialog} onClose={() => setOpenMfaDialog(false)}>
+        <DialogTitle>Verification Required</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            To update sensitive information, please enter the verification code sent to your email.
+          </DialogContentText>
+          {mfaError && <Alert severity="error" sx={{ mt: 1 }}>{mfaError}</Alert>}
+          <TextField
+            autoFocus
+            margin="dense"
+            id="otp"
+            label="Verification Code"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenMfaDialog(false)}>Cancel</Button>
+          <Button onClick={handleMfaSubmit} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? <CircularProgress size={24} /> : 'Verify & Update'}
           </Button>
         </DialogActions>
       </Dialog>
