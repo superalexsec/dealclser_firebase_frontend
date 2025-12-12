@@ -48,7 +48,14 @@
     - [x] Use correct endpoint `/tenants/me`.
 - [x] **Update per Backend Requirement:** Enforce MFA for *all* profile updates (name, phone, etc.), not just sensitive ones.
 
-## 6. Testing
+## 6. Tenant Deletion (`src/pages/Profile.tsx`)
+- [x] Update `deleteTenant` in `api.ts` to accept `otp` payload.
+- [x] Update `Profile.tsx` to handle MFA flow for deletion:
+    - [x] On confirmation dialog -> Call `requestMfa` -> Open MFA Dialog.
+    - [x] On MFA Submit -> Call `deleteTenant` with `otp`.
+    - [x] Handle errors.
+
+## 7. Testing
 - [x] Verify Registration -> Verification -> Login flow.
 - [x] Verify Login (unverified) -> Redirect to Verification.
 - [x] Verify Forgot Password -> Reset Password -> Login.

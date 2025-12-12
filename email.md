@@ -1,67 +1,37 @@
 To: Frontend Team
-Subject: Backend Update: OTP Enforcement for All Tenant Profile Updates
+Subject: Backend Update: OTP Enforcement for Tenant Deletion and Profile Updates
 
 Hi Frontend Team,
 
-We have updated the `PUT /tenants/me` endpoint to strictly enforce OTP verification for **all** tenant profile updates, as per your request.
+We have updated the backend to strictly enforce OTP verification for critical actions: **Profile Updates** and **Tenant Deletion**.
 
-Any attempt to update tenant information (including name, phone, address, etc.) will now require a valid `otp` field in the request body.
+### 1. Profile Updates (`PUT /tenants/me`)
 
-### Implementation Details
+As previously communicated, **ANY** update to tenant information now requires a valid `otp` field.
 
-1.  **Request OTP**: First, call the MFA endpoint to send an OTP to the tenant's email.
-    *   **Endpoint**: `POST /auth/request-mfa`
-    *   **Payload**: `{"email": "tenant@example.com"}`
+### 2. Tenant Deletion (`DELETE /tenants/me`) - **NEW**
 
-2.  **Update Profile**: Then, use the OTP to authorize the update.
+We have also added OTP protection to the account deletion endpoint.
 
-#### **Endpoint**: `PUT /tenants/me`
+**Action Required:**
+Before calling the delete endpoint, you must request an OTP via `POST /auth/request-mfa` and prompt the user to enter it.
 
-**Sample Request (cURL):**
+**Request Format:**
 
-```bash
-curl -X PUT "https://your-backend-url/tenants/me" \
-     -H "Authorization: Bearer <ACCESS_TOKEN>" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "name": "New Company Name",
-           "phone": "+5511999999999",
-           "otp": "123456"
-         }'
-```
+- **Endpoint**: `DELETE /tenants/me`
+- **Body** (JSON):
+  ```json
+  {
+    "otp": "123456"
+  }
+  ```
+  *(Note: DELETE requests with a body are supported by HTTP specs and most clients, but ensure your client library supports it. If not, let us know).*
 
-**Success Response (200 OK):**
+**Error Responses:**
+- `403 Forbidden`: OTP is missing.
+- `400 Bad Request`: OTP is invalid or expired.
 
-```json
-{
-  "id": "uuid...",
-  "name": "New Company Name",
-  "phone": "+5511999999999",
-  "email": "tenant@example.com",
-  "is_active": true,
-  "created_at": "...",
-  "updated_at": "...",
-  "email_verified": true
-}
-```
-
-**Error Response - Missing OTP (403 Forbidden):**
-
-```json
-{
-  "detail": "OTP required for updating profile information."
-}
-```
-
-**Error Response - Invalid OTP (400 Bad Request):**
-
-```json
-{
-  "detail": "Invalid OTP."
-}
-```
-
-Please update your frontend logic to trigger the MFA flow for all profile save actions.
+Please update your "Delete Account" flow to include this verification step.
 
 Best regards,
 Backend Service Team

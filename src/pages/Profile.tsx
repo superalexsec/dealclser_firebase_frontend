@@ -30,12 +30,11 @@ import {
   Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
-  Logout as LogoutIcon,
   QuestionAnswer as QuestionIcon,
   LockReset as LockResetIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient, { 
+import { 
     TenantData, 
     TenantUpdate, 
     fetchTenantData, 
@@ -75,6 +74,8 @@ const Profile = () => {
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaError, setMfaError] = useState('');
   const [pendingUpdate, setPendingUpdate] = useState<TenantUpdateWithOtp | null>(null);
+  // Track which action triggered MFA: 'update' or 'delete'
+  const [mfaAction, setMfaAction] = useState<'update' | 'delete' | null>(null);
 
   const { data: profile, isLoading, error: queryError } = useQuery<TenantData, Error>({
     queryKey: ['tenantData', token],
@@ -112,6 +113,7 @@ const Profile = () => {
       setOpenMfaDialog(false);
       setOtp('');
       setPendingUpdate(null);
+      setMfaAction(null);
       setTimeout(() => setUpdateSuccess(false), 3000);
     },
     onError: (error: any) => {
@@ -139,13 +141,19 @@ const Profile = () => {
     },
   });
 
-  const deleteMutation = useMutation<void, Error>({
-    mutationFn: () => deleteTenant(token),
+  const deleteMutation = useMutation<void, Error, string>({
+    mutationFn: (otpCode) => deleteTenant(token, { otp: otpCode }),
     onSuccess: () => {
       queryClient.clear();
       logout();
       navigate('/');
     },
+    onError: (error: any) => {
+        console.error('Delete failed:', error);
+        if (openMfaDialog) {
+             setMfaError(error.response?.data?.detail || 'Invalid OTP or deletion failed.');
+        }
+    }
   });
 
   const handleDeleteClick = () => {
@@ -156,9 +164,31 @@ const Profile = () => {
     setOpenDeleteDialog(false);
   };
 
-  const handleConfirmDelete = () => {
-    deleteMutation.mutate();
+  const handleConfirmDelete = async () => {
+    console.log('handleConfirmDelete called');
     handleCloseDeleteDialog();
+    // Initiate MFA for deletion
+    setMfaError('');
+    setOtp('');
+    setMfaLoading(true);
+    setMfaAction('delete');
+
+    try {
+        if (profile?.email) {
+            console.log('Requesting MFA for email:', profile.email);
+            await requestMfa({ email: profile.email });
+            console.log('MFA requested successfully, opening dialog');
+            setOpenMfaDialog(true);
+        } else {
+            console.error('Email missing in profile');
+            setUpdateError('Cannot verify identity: Email missing.');
+        }
+    } catch (err) {
+        console.error('MFA Request failed:', err);
+        setUpdateError('Failed to send verification code.');
+    } finally {
+        setMfaLoading(false);
+    }
   };
 
   const handleInputChange = (field: keyof TenantUpdateWithOtp) => (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,6 +207,7 @@ const Profile = () => {
 
     // Enforce MFA for all updates as per backend requirement
     setPendingUpdate(formState);
+    setMfaAction('update');
     setMfaError('');
     setOtp('');
     setMfaLoading(true);
@@ -188,10 +219,12 @@ const Profile = () => {
         } else {
             setUpdateError('Cannot verify identity: Email missing.');
             setPendingUpdate(null);
+            setMfaAction(null);
         }
     } catch (err) {
         setUpdateError('Failed to send verification code.');
         setPendingUpdate(null);
+        setMfaAction(null);
     } finally {
         setMfaLoading(false);
     }
@@ -202,8 +235,11 @@ const Profile = () => {
           setMfaError('Please enter the code.');
           return;
       }
-      if (pendingUpdate) {
+      
+      if (mfaAction === 'update' && pendingUpdate) {
           updateMutation.mutate({ ...pendingUpdate, otp });
+      } else if (mfaAction === 'delete') {
+          deleteMutation.mutate(otp);
       }
   };
 
@@ -217,6 +253,7 @@ const Profile = () => {
         phone: profile.phone,
         person_name: profile.person_name,
         address: profile.address,
+        client_register_custom_question: profile.client_register_custom_question || '',
       });
     }
   };
@@ -235,7 +272,7 @@ const Profile = () => {
     );
   }
 
-  const displayError = queryError || deleteMutation.error || (updateMutation.error && !openMfaDialog) || logoutMutation.error;
+  const displayError = queryError || (updateMutation.error && !openMfaDialog) || logoutMutation.error;
   if (displayError && !isEditing) {
      return (
        <Alert severity="error" sx={{ mb: 2}}>
@@ -283,7 +320,7 @@ const Profile = () => {
               />
             </Box>
 
-            {updateError && isEditing && <Alert severity="error" sx={{ mb: 2 }}>{updateError}</Alert>}
+            {updateError && <Alert severity="error" sx={{ mb: 2 }}>{updateError}</Alert>}
             {updateSuccess && <Alert severity="success" sx={{ mb: 2 }}>{t('profile.success_update')}</Alert>}
 
             <List>
@@ -447,7 +484,10 @@ const Profile = () => {
         <DialogTitle>Verification Required</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            To update sensitive information, please enter the verification code sent to your email.
+            {mfaAction === 'delete' 
+              ? "To permanently delete your account, please enter the verification code sent to your email."
+              : "To update your profile, please enter the verification code sent to your email."
+            }
           </DialogContentText>
           {mfaError && <Alert severity="error" sx={{ mt: 1 }}>{mfaError}</Alert>}
           <TextField
@@ -464,8 +504,8 @@ const Profile = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenMfaDialog(false)}>Cancel</Button>
-          <Button onClick={handleMfaSubmit} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? <CircularProgress size={24} /> : 'Verify & Update'}
+          <Button onClick={handleMfaSubmit} disabled={updateMutation.isPending || deleteMutation.isPending || mfaLoading}>
+              {(updateMutation.isPending || deleteMutation.isPending || mfaLoading) ? <CircularProgress size={24} /> : 'Verify & Confirm'}
           </Button>
         </DialogActions>
       </Dialog>

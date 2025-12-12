@@ -82,14 +82,6 @@ interface AuthResponse {
   tenantId: string;
 }
 
-interface ErrorResponse {
-  response?: {
-    data?: {
-      message: string;
-    };
-  };
-}
-
 const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeChange }) => {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
@@ -117,7 +109,7 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
       } else {
         console.warn('Registration attempt via AuthDialog');
         // Updated to correct endpoint: /register (without /auth prefix)
-        const response = await apiClient.post<AuthResponse>('/register', {
+        await apiClient.post<AuthResponse>('/register', {
           email,
           password,
           name,
@@ -332,7 +324,6 @@ const Landing: React.FC = () => {
   const theme = useTheme();
   const [authOpen, setAuthOpen] = useState(false);
   const [isLoginMode, setIsLoginMode] = useState(true);
-  const navigate = useNavigate();
   const { t } = useTranslation();
 
   const handleAuthClick = (login: boolean) => {

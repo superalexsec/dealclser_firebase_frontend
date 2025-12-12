@@ -283,10 +283,11 @@ export const logoutTenant = async (token?: string | null): Promise<void> => {
     });
 };
 
-export const deleteTenant = async (token?: string | null): Promise<void> => {
+export const deleteTenant = async (token?: string | null, payload?: { otp: string }): Promise<void> => {
     if (!token) throw new Error('Authentication token is required.');
     await apiClient.delete('/tenants/me', { 
-        headers: { Authorization: `Bearer ${token}` } 
+        headers: { Authorization: `Bearer ${token}` },
+        data: payload
     });
 };
 
