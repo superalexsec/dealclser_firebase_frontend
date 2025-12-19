@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import { getRecaptchaToken } from './recaptcha';
 
 // Use environment variable for backend URL
 const backendUrl = process.env.REACT_APP_BACKEND_URL;
@@ -246,12 +247,28 @@ export const verifyEmailOtp = async (payload: VerifyEmailPayload): Promise<void>
 
 // Request MFA OTP (Correctly prefixed with /auth)
 export const requestMfa = async (payload: RequestMfaPayload): Promise<void> => {
-    await apiClient.post('/auth/request-mfa', payload);
+    // Generate reCAPTCHA token for resend_otp action
+    const recaptchaToken = await getRecaptchaToken('resend_otp');
+
+    await apiClient.post('/auth/request-mfa', payload, {
+        headers: {
+            'X-Recaptcha-Token': recaptchaToken,
+            'X-Recaptcha-Action': 'resend_otp'
+        }
+    });
 };
 
 // Forgot Password - Request OTP (Correctly prefixed with /auth)
 export const forgotPassword = async (payload: ForgotPasswordPayload): Promise<void> => {
-    await apiClient.post('/auth/forgot-password', payload);
+    // Generate reCAPTCHA token for password_reset action
+    const recaptchaToken = await getRecaptchaToken('password_reset');
+
+    await apiClient.post('/auth/forgot-password', payload, {
+        headers: {
+            'X-Recaptcha-Token': recaptchaToken,
+            'X-Recaptcha-Action': 'password_reset'
+        }
+    });
 };
 
 // Reset Password with OTP (Correctly prefixed with /auth)

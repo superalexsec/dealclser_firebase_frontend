@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import apiClient from '../lib/api';
+import { getRecaptchaToken } from '../lib/recaptcha';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -32,11 +33,14 @@ interface RegisterResponse {
 
 // Function to perform the API call
 const registerTenant = async (data: RegisterData): Promise<RegisterResponse> => {
+  // Generate reCAPTCHA token for signup action
+  const recaptchaToken = await getRecaptchaToken('signup');
+
   const response = await apiClient.post<RegisterResponse>('/register', data, {
-    // Headers are likely handled by apiClient defaults or interceptors if needed
-    // If specific headers ARE needed for registration (like Content-Type),
-    // ensure apiClient defaults cover it or add them here explicitly.
-    // Since we are sending JSON, apiClient's default 'Content-Type': 'application/json' should be correct.
+    headers: {
+      'X-Recaptcha-Token': recaptchaToken,
+      'X-Recaptcha-Action': 'signup'
+    }
   });
   return response.data;
 };

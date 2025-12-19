@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import apiClient from '../lib/api';
+import { getRecaptchaToken } from '../lib/recaptcha';
 
 // Add type definition for the runtime config if not already global
 // (Assuming it might be used elsewhere, making it global is fine)
@@ -46,12 +47,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     params.append('password', credentials.password || '');
 
     try {
+      // Generate reCAPTCHA token for login action
+      const recaptchaToken = await getRecaptchaToken('login');
+
       const response = await apiClient.post(
         '/token', 
         params, // Send URLSearchParams
         {
           headers: { 
-            'Content-Type': 'application/x-www-form-urlencoded' 
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Recaptcha-Token': recaptchaToken,
+            'X-Recaptcha-Action': 'login'
           }
         }
       );

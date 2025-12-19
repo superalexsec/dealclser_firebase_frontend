@@ -1,0 +1,6 @@
+You can use the following sample to query the DB and make the code comply (or the DB): DB_PASS=$(gcloud secrets versions access latest --secret=dealcloser_DB_PASS) && PGPASSWORD=$DB_PASS psql "host=34.95.239.158 port=5432 dbname=whatsapp_db user=dealcloser" -c "\dt" | cat
+
+GCP SQL Postgres15
+Connection name:			messagingtextbot:southamerica-east1:dealcloser-db
+Public IP address:			34.95.239.158
+Default TCP database port number:	5432 

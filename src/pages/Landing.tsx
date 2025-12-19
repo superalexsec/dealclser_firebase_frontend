@@ -33,6 +33,7 @@ import { styled } from '@mui/material/styles';
 import apiClient from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { getRecaptchaToken } from '../lib/recaptcha';
 
 const HeroSection = styled(Box)(({ theme }) => ({
   background: `linear-gradient(45deg, ${theme.palette.primary.main} 30%, ${theme.palette.primary.dark} 90%)`,
@@ -108,6 +109,10 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
         navigate('/profile');
       } else {
         console.warn('Registration attempt via AuthDialog');
+        
+        // Generate reCAPTCHA token for signup action
+        const recaptchaToken = await getRecaptchaToken('signup');
+        
         // Updated to correct endpoint: /register (without /auth prefix)
         await apiClient.post<AuthResponse>('/register', {
           email,
@@ -115,6 +120,11 @@ const AuthDialog: React.FC<AuthDialogProps> = ({ open, onClose, isLogin, onModeC
           name,
           phone,
           address,
+        }, {
+          headers: {
+            'X-Recaptcha-Token': recaptchaToken,
+            'X-Recaptcha-Action': 'signup'
+          }
         });
         // Registration successful (201). Backend sends email.
         // Redirect to email verification page.
